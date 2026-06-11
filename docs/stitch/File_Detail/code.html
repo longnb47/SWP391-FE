@@ -1,0 +1,385 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Xem tài liệu &amp; Chat AI (Updated Sidebar)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#5f5e5e",
+                        "on-secondary-container": "#636262",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#ffdbcc",
+                        "primary": "#a04100",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#ffb693",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#dd8245",
+                        "surface": "#fbf9f8",
+                        "on-tertiary-fixed": "#321300",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "inverse-primary": "#ffb693",
+                        "on-background": "#1b1c1c",
+                        "on-surface": "#1b1c1c",
+                        "surface-dim": "#dbdad9",
+                        "surface-container-highest": "#e4e2e2",
+                        "surface-variant": "#e4e2e2",
+                        "on-secondary-fixed-variant": "#474746",
+                        "secondary-container": "#e2dfde",
+                        "secondary-fixed": "#e5e2e1",
+                        "on-tertiary-fixed-variant": "#743500",
+                        "inverse-on-surface": "#f2f0f0",
+                        "on-primary-fixed": "#351000",
+                        "background": "#fbf9f8",
+                        "on-primary-fixed-variant": "#7a3000",
+                        "surface-bright": "#fbf9f8",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "inverse-surface": "#303031",
+                        "on-error": "#ffffff",
+                        "surface-tint": "#a04100",
+                        "primary-container": "#ff6b00",
+                        "outline": "#8e7164",
+                        "tertiary-fixed": "#ffdbc8",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f5f3f3",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb68a",
+                        "surface-container-high": "#e9e8e7",
+                        "tertiary": "#954a0f",
+                        "on-primary-container": "#572000",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#efeded",
+                        "outline-variant": "#e2bfb0",
+                        "on-surface-variant": "#5a4136",
+                        "on-tertiary-container": "#532400"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "24px",
+                        "ai-panel-width": "360px",
+                        "unit": "8px",
+                        "sidebar-width": "280px",
+                        "gutter": "16px",
+                        "container-padding": "24px",
+                        "stack-sm": "4px",
+                        "stack-md": "12px"
+                    },
+                    "fontFamily": {
+                        "mono-label": ["JetBrains Mono"],
+                        "label-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "mono-label": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="w-sidebar-width h-screen fixed left-0 top-0 hidden md:flex flex-col py-container-padding border-r border-outline-variant bg-surface-container-low shadow-sm z-40">
+<!-- Brand Header -->
+<div class="px-container-padding mb-stack-lg">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-sm">
+<span class="material-symbols-outlined icon-fill">cloud_sync</span>
+</div>
+<div>
+<h1 class="font-title-lg text-title-lg font-black text-on-surface tracking-tight">AetherDocs</h1>
+<p class="font-label-md text-label-md text-secondary">Intelligent Storage</p>
+</div>
+</div>
+</div>
+<!-- Primary CTA -->
+<div class="px-container-padding mb-stack-lg">
+    <div class="space-y-stack-md">
+        <button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-[0px_2px_0px_rgba(160,65,0,0.5)]">
+            <span class="material-symbols-outlined" style="font-size: 20px;">upload</span>
+            Upload File
+        </button>
+        <button class="w-full border border-primary text-primary font-label-md text-label-md py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/5 active:scale-95 transition-all">
+            <span class="material-symbols-outlined" style="font-size: 20px;">create_new_folder</span>
+            New Folder
+        </button>
+    </div>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+<!-- Active Tab (Contextual) -->
+<a class="flex items-center gap-stack-md text-on-primary-container font-bold px-4 py-2 rounded-lg transition-all duration-200 ease-in-out bg-primary-container/10 border-l-4 border-primary rounded-l-none" href="#"><span class="material-symbols-outlined icon-fill text-primary" style="font-size: 20px;">folder_open</span><span class="font-label-md text-label-md text-on-primary-container">My Files</span></a>
+<!-- Inactive Tabs -->
+<a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group" href="">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-size: 20px;">travel_explore</span>
+<span class="font-label-md text-label-md">Smart Search</span>
+</a><a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-size: 20px;">public</span>
+<span class="font-label-md text-label-md">Community</span>
+</a>
+<a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-size: 20px;">group</span>
+<span class="font-label-md text-label-md">Shared</span>
+</a><a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-size: 20px;">star</span>
+<span class="font-label-md text-label-md">Starred</span>
+</a>
+<a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-size: 20px;">delete</span>
+<span class="font-label-md text-label-md">Trash</span>
+</a>
+<div class="my-4 border-t border-outline-variant/50 mx-4"></div>
+<!-- AI Assistant Tab -->
+<a class="flex items-center gap-stack-md text-tertiary hover:text-tertiary-container hover:bg-tertiary-fixed/30 px-4 py-2 rounded-lg transition-transform duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined group-hover:animate-pulse" style="font-size: 20px;">smart_toy</span>
+<span class="font-label-md text-label-md">AI Assistant</span>
+</a>
+</nav>
+<!-- Footer Area -->
+<div class="mt-auto px-3 pt-4 border-t border-outline-variant"><div class="px-4 py-3 mb-2 bg-surface-container-highest/30 rounded-lg border border-outline-variant/50">
+<div class="flex justify-between items-center font-label-md text-label-md text-on-surface-variant mb-2">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">cloud_queue</span> Storage
+        </span>
+<span class="font-mono-label text-mono-label text-on-surface-variant">15% used</span>
+</div>
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 15%;"></div>
+</div>
+<p class="text-[10px] text-secondary mt-2">15GB / 100GB total</p>
+</div>
+<a class="flex items-center gap-stack-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-4 py-2 rounded-lg transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a></div>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 ml-0 md:ml-[280px] flex flex-col h-screen overflow-hidden bg-background">
+<!-- TopNavBar -->
+<header class="w-full h-16 bg-surface shadow-sm flex justify-between items-center px-gutter sticky top-0 z-50">
+<div class="flex items-center gap-stack-md">
+<!-- Mobile menu toggle (hidden on md) -->
+<button class="md:hidden p-2 text-secondary hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="hidden md:flex items-center bg-surface-container-low rounded-xl px-4 py-2 border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-fixed transition-all w-96">
+<span class="material-symbols-outlined text-secondary mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim p-0" placeholder="Search files, contents, or ask AI..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="p-2 text-secondary hover:text-on-surface hover:bg-surface-container-high transition-colors rounded-full scale-95 active:opacity-80 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:text-on-surface hover:bg-surface-container-high transition-colors rounded-full scale-95 active:opacity-80 transition-all">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="font-label-md text-label-md text-primary font-bold px-4 py-2 rounded-lg hover:bg-primary-fixed transition-colors">
+                    Upgrade
+                </button>
+<div class="w-8 h-8 rounded-full bg-tertiary-container overflow-hidden ml-2 border border-outline-variant">
+<img alt="User avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a person looking directly at the camera. The lighting is soft and natural, emphasizing a clean, modern aesthetic. The background is a slightly blurred, warm neutral gray, fitting seamlessly into a high-end, intelligent UI design system. The person wears smart-casual attire in deep tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDr12n7oIcdh8QsrM01Vsm0DowkHX9cdEvRr2ofy8xRk1F1Bhbufx4u3h639ktn_3k5DcNlQZvG2FfML3Fv0PIHL8gyPy4w0uAg74XFZXUC7-wFpvJzXqZw1LI_-X55_QT4Uar172sCmt3QaF6K-RZIjk91Td0vyLDYfucyIL4RJg0ImMsEuaO2T1nj-0PnaaY5iN_7t_ivWJBOprMYLbvKcUHhebtuixjit-f9cgCeY7_AwMlkWFoRYeThoxyqSmcn5jjXaFY7TSGl">
+</div>
+</div>
+</header>
+<!-- Split View Container -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left Panel: File Preview (60%) -->
+<section class="flex-[6] bg-surface flex flex-col border-r border-outline-variant relative z-10">
+<!-- Document Toolbar -->
+<div class="h-14 border-b border-surface-container-high flex items-center justify-between px-container-padding bg-surface-bright">
+<div class="flex items-center gap-stack-md">
+<div class="w-8 h-8 rounded bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-on-surface line-clamp-1">Company Q3 Strategy &amp; Market Analysis.pdf</h2>
+<p class="font-mono-label text-mono-label text-secondary">Updated 2 hours ago • 2.4 MB</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-[20px]">zoom_out</span></button>
+<span class="font-mono-label text-mono-label text-secondary px-2">100%</span>
+<button class="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-[20px]">zoom_in</span></button>
+<div class="w-px h-4 bg-outline-variant mx-2"></div>
+<button class="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-[20px]">download</span></button>
+<button class="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-[20px]">share</span></button>
+</div>
+</div>
+<!-- Document Viewer Area -->
+<div class="flex-1 overflow-y-auto p-container-padding bg-surface-container-low flex justify-center custom-scrollbar">
+<!-- Faux PDF Page -->
+<div class="bg-surface w-full max-w-3xl min-h-[1056px] shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-outline-variant rounded p-12 flex flex-col gap-8">
+<header class="border-b-2 border-primary pb-4 mb-4">
+<h1 class="font-display-lg text-display-lg text-on-surface mb-2">Q3 Strategic Outlook</h1>
+<p class="font-body-lg text-body-lg text-secondary">Confidential - Internal Distribution Only</p>
+</header>
+<div class="space-y-6">
+<div>
+<h3 class="font-title-lg text-title-lg text-on-surface mb-2">1. Executive Summary</h3>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed text-justify">
+                                    The third quarter has presented significant opportunities for expansion in the enterprise sector. Despite macroeconomic headwinds, our core SaaS products have seen a 14% year-over-year growth. This document outlines the strategic pivot towards AI-integrated workflows to capitalize on emerging market demands. We anticipate this shift will require a reallocation of 20% of the R&amp;D budget by Q4.
+                                </p>
+</div>
+<div class="p-6 bg-surface-container rounded-lg border border-surface-container-high relative group">
+<!-- AI Highlight overlay simulation -->
+<div class="absolute -left-3 top-6 w-1 h-12 bg-primary rounded-full hidden group-hover:block transition-all"></div>
+<h3 class="font-title-lg text-title-lg text-on-surface mb-2">2. Key Objectives</h3>
+<ul class="list-disc pl-5 font-body-md text-body-md text-on-surface-variant space-y-2">
+<li class="">Accelerate deployment of machine learning modules within the Aether platform.</li>
+<li class="">Expand the sales task force in the EMEA region by 15 personnel.</li>
+<li class="">Reduce customer churn by 2% through proactive engagement initiatives.</li>
+</ul>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-on-surface mb-2">3. Financial Projections</h3>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-4">
+                                    Revenue targets for Q3 are set aggressively at $42M, representing a strong quarter-over-quarter growth trajectory. Margin expansion remains a priority, driven by operational efficiencies in cloud infrastructure.
+                                </p>
+<!-- Placeholder Chart Area -->
+<div class="w-full h-48 bg-surface-container-high rounded flex items-center justify-center border border-outline-variant border-dashed">
+<span class="font-mono-label text-mono-label text-secondary">[ Financial Chart Graphic ]</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: AI Chat (40%) -->
+<section class="flex-[4] bg-surface flex flex-col relative">
+<!-- AI Header -->
+<div class="h-14 border-b border-surface-container-high flex items-center px-container-padding bg-surface-bright shrink-0 shadow-sm z-20">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined fill">smart_toy</span>
+<h2 class="font-title-lg text-title-lg font-semibold">AI Document Assistant</h2>
+</div>
+<button class="ml-auto p-1.5 text-secondary hover:bg-surface-container rounded transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<!-- Chat History -->
+<div class="flex-1 overflow-y-auto p-container-padding flex flex-col gap-6 custom-scrollbar pb-32">
+<!-- AI Welcome Message -->
+<div class="flex gap-4 max-w-[90%]">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-secondary ml-1">Aether AI</span>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-2xl rounded-tl-sm p-4 shadow-sm">
+<p class="font-body-md text-body-md text-on-surface">I've analyzed "Company Q3 Strategy &amp; Market Analysis.pdf". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?</p>
+</div>
+</div>
+</div>
+<!-- User Question -->
+<div class="flex gap-4 max-w-[90%] self-end flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-tertiary-container overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a person looking directly at the camera. The lighting is soft and natural, emphasizing a clean, modern aesthetic. The background is a slightly blurred, warm neutral gray, fitting seamlessly into a high-end, intelligent UI design system. The person wears smart-casual attire in deep tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNWISaKg4fAkUn6UsQ1Uv7beg_ldunBYMsvYQy65bZHokC00wDgOkKxnTT9YFKJN2FiR4ILshXnB_Qf5hn1qbnBWgeNNGlCKgbdjdeIzuMQUo2hYt6EXS7oxR29Ei9HjVF0DcRWc_If0jifdnVxPNcG6uY6acjuWMsbr-En4qf21j3fdgXlHl9ZjdPQy9bYgZ8MW-_KYB1uMCbWfSyBNEtDlbbMw39MlfQh0uPjlPcBYl-YQS_3nQzU6d5sJ0pVKudPB4MQ7JNvt2l">
+</div>
+<div class="flex flex-col gap-1 items-end">
+<span class="font-label-md text-label-md text-secondary mr-1">You</span>
+<div class="bg-surface-container-high rounded-2xl rounded-tr-sm p-4">
+<p class="font-body-md text-body-md text-on-surface">What are the specific Key Objectives mentioned in section 2?</p>
+</div>
+</div>
+</div>
+<!-- AI Answer with Citation -->
+<div class="flex gap-4 max-w-[95%]">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px] fill">smart_toy</span>
+</div>
+<div class="flex flex-col gap-2">
+<span class="font-label-md text-label-md text-secondary ml-1">Aether AI</span>
+<div class="bg-surface-container-lowest border border-primary-fixed-dim rounded-2xl rounded-tl-sm p-4 shadow-sm backdrop-blur-[12px] bg-white/90">
+<p class="font-body-md text-body-md text-on-surface mb-3">Based on Section 2 of the document, the Key Objectives for Q3 are:</p>
+<ul class="list-disc pl-5 font-body-md text-body-md text-on-surface space-y-1 mb-4">
+<li class="">Accelerating deployment of machine learning modules.</li>
+<li class="">Expanding the EMEA sales task force by 15 people.</li>
+<li class="">Reducing customer churn by 2% via proactive engagement.</li>
+</ul>
+<!-- Citation Badge -->
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-[14px] text-primary group-hover:text-primary-container">description</span>
+<span class="font-mono-label text-mono-label text-on-surface-variant">Page 1, Section 2</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area (Sticky Bottom) -->
+<div class="absolute bottom-0 left-0 right-0 p-container-padding bg-gradient-to-t from-surface via-surface to-transparent pt-8">
+<div class="relative flex items-center bg-surface-container-lowest rounded-xl border border-outline-variant focus-within:border-primary-container focus-within:ring-4 focus-within:ring-primary-fixed transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+<button class="p-3 text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3" placeholder="Ask a question about this document..." type="text">
+<button class="m-2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</div>
+<div class="text-center mt-2">
+<span class="font-mono-label text-mono-label text-secondary">AI can make mistakes. Verify important information.</span>
+</div>
+</div>
+</section>
+</main>
+</div>
+<style>
+        /* Custom Scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e2dfde;
+            border-radius: 20px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #c8c6c5;
+        }
+    </style>
+
+
+
+
+
+
+</body></html>

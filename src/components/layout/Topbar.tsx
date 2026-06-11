@@ -1,0 +1,84 @@
+import React from 'react';
+import SearchInput from '../common/SearchInput';
+
+export interface TopbarProps {
+  onMobileMenuToggle?: () => void;
+  onSearch?: (query: string) => void;
+  onNotificationClick?: () => void;
+  onHelpClick?: () => void;
+  onUpgradeClick?: () => void;
+  onProfileClick?: () => void;
+}
+
+export const Topbar: React.FC<TopbarProps> = ({
+  onMobileMenuToggle,
+  onSearch,
+  onNotificationClick,
+  onHelpClick,
+  onUpgradeClick,
+  onProfileClick,
+}) => {
+  const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
+
+  return (
+    <header className="flex justify-between items-center px-gutter w-full sticky top-0 z-30 shadow-sm bg-surface h-16 border-b border-outline-variant/30 select-none">
+      {/* Left Area: Mobile Menu Toggle & App Name (Only visible on mobile header) */}
+      <div className="flex items-center">
+        {onMobileMenuToggle && (
+          <button
+            onClick={onMobileMenuToggle}
+            className="md:hidden p-2 -ml-2 text-secondary hover:bg-surface-container-high rounded-full transition-colors mr-2 cursor-pointer"
+          >
+            <span className="material-symbols-outlined select-none">menu</span>
+          </button>
+        )}
+      </div>
+
+      {/* Middle Area: Search bar */}
+      <div className="flex-1 flex items-center max-w-2xl md:ml-0">
+        <SearchInput onSearchChange={onSearch} />
+      </div>
+
+      {/* Right Area: Actions */}
+      <div className="flex items-center gap-2 sm:gap-4 ml-4">
+        {/* Help button (Hidden on very small screens) */}
+        <button
+          onClick={onHelpClick}
+          className="text-secondary hover:bg-surface-container-high p-2 rounded-full transition-colors scale-95 active:opacity-80 hidden sm:block cursor-pointer select-none"
+        >
+          <span className="material-symbols-outlined select-none">help</span>
+        </button>
+
+        {/* Notifications button */}
+        <button
+          onClick={onNotificationClick}
+          className="text-secondary hover:bg-surface-container-high p-2 rounded-full transition-colors scale-95 active:opacity-80 relative cursor-pointer select-none"
+        >
+          <span className="material-symbols-outlined select-none">notifications</span>
+          <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface" />
+        </button>
+
+        {/* Upgrade Button (Hidden on mobile/tablet) */}
+        <button
+          onClick={onUpgradeClick}
+          className="hidden lg:block border border-outline text-primary font-label-md text-label-md px-4 py-2 rounded-lg hover:bg-primary-fixed/20 transition-all cursor-pointer font-medium"
+        >
+          Upgrade
+        </button>
+
+        {/* User Profile Avatar */}
+        <div
+          onClick={onProfileClick}
+          className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-2 cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors"
+        >
+          <img
+            src={userAvatar}
+            alt="User avatar"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+    </header>
+  );
+};
+export default Topbar;
