@@ -23,6 +23,7 @@ export const SuggestedFileCard: React.FC<SuggestedFileCardProps> = ({
     description,
     metadata,
     avatars = [],
+    tagDetails = [],
   } = item;
 
   const handleAiClick = (e: React.MouseEvent) => {
@@ -32,6 +33,15 @@ export const SuggestedFileCard: React.FC<SuggestedFileCardProps> = ({
 
   const handleCardClick = () => {
     if (onClick) onClick(item);
+  };
+
+  const formatColorStyle = (colorCode: string) => {
+    const cleanColor = colorCode.startsWith('#') ? colorCode : `#${colorCode}`;
+    return {
+      backgroundColor: `${cleanColor}15`, // ~8% opacity
+      color: cleanColor,
+      borderColor: `${cleanColor}30`, // ~18% opacity
+    };
   };
 
   // 1. Render Team Workspace (spans 2 columns, Bento style)
@@ -86,27 +96,20 @@ export const SuggestedFileCard: React.FC<SuggestedFileCardProps> = ({
     );
   }
 
-  // 2. Render normal file card (with either image preview or giant icon)
+  // 2. Standard Bento Item (Presentation or Document card)
   return (
     <div
       onClick={handleCardClick}
-      className="group bg-surface rounded-xl border border-surface-variant shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 overflow-hidden cursor-pointer relative flex flex-col h-48"
+      className="group bg-surface rounded-2xl border border-surface-variant hover:border-outline-variant/60 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 cursor-pointer flex flex-col h-48 relative overflow-hidden"
     >
       {previewUrl ? (
         // Preview image header
-        <div className="h-28 bg-surface-container-low border-b border-surface-variant overflow-hidden relative">
+        <div className="h-28 bg-surface-container-highest border-b border-surface-variant relative overflow-hidden">
           <img
             src={previewUrl}
             alt={name}
-            className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 select-none"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-surface/80 to-transparent" />
-          <div className="absolute top-2 left-2 bg-surface/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono-label font-medium text-primary flex items-center gap-1 border border-outline-variant/30">
-            <span className="material-symbols-outlined text-[14px] select-none">
-              {icon}
-            </span> 
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </div>
         </div>
       ) : (
         // Giant file icon header
@@ -125,11 +128,26 @@ export const SuggestedFileCard: React.FC<SuggestedFileCardProps> = ({
           </h4>
           {tags.length > 0 && (
             <div className="flex gap-1 mt-1">
-              {tags.map((tag) => (
-                <Badge key={tag} variant={tag === 'Urgent' ? 'error' : tag === 'Draft' ? 'secondary' : 'primary'}>
-                  {tag}
-                </Badge>
-              ))}
+              {tags.map((tag) => {
+                const details = tagDetails.find((t) => t.name.trim().toLowerCase() === tag.trim().toLowerCase());
+                if (details && details.color) {
+                  const colorStyle = formatColorStyle(details.color);
+                  return (
+                    <span
+                      key={tag}
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border select-none w-fit inline-flex items-center transition-colors"
+                      style={colorStyle}
+                    >
+                      {tag}
+                    </span>
+                  );
+                }
+                return (
+                  <Badge key={tag} variant={tag === 'Urgent' ? 'error' : tag === 'Draft' ? 'secondary' : 'primary'}>
+                    {tag}
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </div>
@@ -151,4 +169,5 @@ export const SuggestedFileCard: React.FC<SuggestedFileCardProps> = ({
     </div>
   );
 };
+
 export default SuggestedFileCard;

@@ -9,6 +9,8 @@ export interface FileItem {
   lastModified: string;
   size: string;
   isStarred?: boolean;
+  isPublic?: boolean;
+  tagDetails?: { name: string; color: string }[];
 }
 
 export interface SuggestedItem {
@@ -22,6 +24,7 @@ export interface SuggestedItem {
   description?: string;
   metadata?: string;
   avatars?: string[];
+  tagDetails?: { name: string; color: string }[];
 }
 
 export interface StorageUsage {
@@ -49,6 +52,7 @@ export const mockSuggestedItems: SuggestedItem[] = [
     previewUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBwF_-v-5qMiRQINgvhyYgtt7DsDjhfoHwgIxKuYAPJe2SW1yjWEPZq_pVWGIr4Vk8hJSGITpnj_N1Cc08xj10xiPQfYU3wA1S6fTEY_01wKrmAKYHL9nWeqq2fUUtHtHnalqarjMsjucy069qoGzVnE9L9TZuqdjFRTHeY3GdQtbW7qJSpPWb_nIQQgwaN18982CpclcSeTXcvINYCnqb6SWwZeC6WnFh1szVlyCDx9XHUoS-v2OL0_-it7N7fjjYXfC8ikZNBfzXz',
     tags: ['Marketing'],
     statusText: 'You edited just now',
+    tagDetails: [{ name: 'Marketing', color: '#f59e0b' }],
   },
   {
     id: 's2',
@@ -57,6 +61,7 @@ export const mockSuggestedItems: SuggestedItem[] = [
     icon: 'description',
     tags: ['Draft'],
     statusText: 'Shared by Sarah 2h ago',
+    tagDetails: [{ name: 'Draft', color: '#64748b' }],
   },
   {
     id: 's3',
@@ -82,6 +87,10 @@ export const mockFileItems: FileItem[] = [
     owner: 'Me',
     lastModified: 'Oct 24, 2023',
     size: '--',
+    tagDetails: [
+      { name: 'Design', color: '#6366f1' },
+      { name: 'UI/UX', color: '#d946ef' },
+    ],
   },
   {
     id: 'f2',
@@ -93,6 +102,10 @@ export const mockFileItems: FileItem[] = [
     owner: 'Me',
     lastModified: 'Yesterday',
     size: '4.2 MB',
+    tagDetails: [
+      { name: 'Urgent', color: '#ef4444' },
+      { name: 'Graphics', color: '#14b8a6' },
+    ],
   },
   {
     id: 'f3',
@@ -104,6 +117,7 @@ export const mockFileItems: FileItem[] = [
     owner: 'Sarah J.',
     lastModified: 'Oct 20, 2023',
     size: '124 KB',
+    tagDetails: [{ name: 'Marketing', color: '#f59e0b' }],
   },
   {
     id: 'f4',

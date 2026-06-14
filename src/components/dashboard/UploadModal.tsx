@@ -278,26 +278,29 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             {/* Selected Tag Chips */}
             {selectedTags.length > 0 && (
               <div className="flex flex-wrap gap-2 py-1.5 animate-in fade-in duration-200">
-                {selectedTags.map((tag) => (
-                  <span
-                    key={tag.tagId}
-                    style={{
-                      backgroundColor: `${tag.color}15`,
-                      color: tag.color,
-                      borderColor: `${tag.color}40`,
-                    }}
-                    className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 font-bold text-body-md rounded-lg border group transition-all"
-                  >
-                    {tag.name}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag.tagId)}
-                      className="material-symbols-outlined text-base rounded-full p-0.5 cursor-pointer opacity-80 hover:opacity-100 hover:bg-black/10 transition-all"
+                {selectedTags.map((tag) => {
+                  const cleanedColor = tag.color.startsWith('#') ? tag.color : `#${tag.color}`;
+                  return (
+                    <span
+                      key={tag.tagId}
+                      style={{
+                        backgroundColor: `${cleanedColor}15`,
+                        color: cleanedColor,
+                        borderColor: `${cleanedColor}40`,
+                      }}
+                      className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 font-bold text-body-md rounded-lg border group transition-all"
                     >
-                      close
-                    </button>
-                  </span>
-                ))}
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag.tagId)}
+                        className="material-symbols-outlined text-base rounded-full p-0.5 cursor-pointer opacity-80 hover:opacity-100 hover:bg-black/10 transition-all"
+                      >
+                        close
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             )}
 
@@ -337,6 +340,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                     {filteredTags.length > 0 ? (
                       filteredTags.map((tag) => {
                         const isChecked = selectedTags.some((t) => t.tagId === tag.tagId);
+                        const cleanedColor = tag.color.startsWith('#') ? tag.color : `#${tag.color}`;
                         return (
                           <label
                             key={tag.tagId}
@@ -349,10 +353,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                               className="w-4.5 h-4.5 rounded border-surface-variant text-primary focus:ring-primary/20 cursor-pointer"
                             />
                             <span
-                              style={{ color: tag.color }}
+                              style={{ color: cleanedColor }}
                               className="font-medium text-body-md flex items-center gap-1.5"
                             >
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cleanedColor }} />
                               {tag.name}
                             </span>
                           </label>

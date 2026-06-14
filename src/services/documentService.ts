@@ -23,6 +23,13 @@ export interface BackendResponse<T> {
   timestamp: string;
 }
 
+export interface DocumentUrlResponse {
+  url: string;
+  expiresAt: string;
+  fileName: string;
+  contentType: string;
+}
+
 export const documentService = {
   async getMyDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/my');
@@ -60,6 +67,14 @@ export const documentService = {
       `/documents/${documentId}/visibility?isPublic=${isPublic}`,
       { method: 'PATCH' }
     );
+  },
+
+  async getDocumentPreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/${documentId}/preview-url`);
+  },
+
+  async getDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/${documentId}/download-url`);
   }
 };
 export default documentService;

@@ -11,9 +11,10 @@ export interface ChatMessage {
 
 export interface DocumentChatProps {
   fileName: string;
+  status?: string;
 }
 
-export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName }) => {
+export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'm1',
@@ -107,6 +108,23 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName }) => {
 
       {/* Chat History Messages */}
       <div className="flex-1 overflow-y-auto p-container-padding flex flex-col gap-6 custom-scrollbar pb-36">
+        {messages.length === 1 && (
+          <div className={`p-4 rounded-xl border flex items-center gap-3 select-none ${
+            status === 'READY' 
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' 
+              : 'bg-rose-50 text-rose-800 border-rose-200/60'
+          }`}>
+            <span className={`material-symbols-outlined ${status === 'READY' ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {status === 'READY' ? 'check_circle' : 'info'}
+            </span>
+            <div className="text-sm font-semibold">
+              {status === 'READY' 
+                ? 'This document is READY for Q&A' 
+                : 'This document is NOT READY for Q&A'}
+            </div>
+          </div>
+        )}
+
         {messages.map((msg) => {
           const isAi = msg.sender === 'ai';
           return (

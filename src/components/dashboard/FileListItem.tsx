@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { FileItem } from '../../features/dashboard/dashboard.mock';
 import Badge from '../common/Badge';
+import { getFileIconDetails } from '../../lib/fileHelpers';
 
 export interface FileListItemProps {
   item: FileItem;
@@ -14,7 +15,7 @@ export const FileListItem: React.FC<FileListItemProps> = ({
   onActionClick,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const { name, type, fileType, icon, tags = [], owner, lastModified, size } = item;
+  const { name, type, tags = [], owner, lastModified, size, isPublic, tagDetails = [] } = item;
 
   const handleRowClick = () => {
     if (onItemClick) onItemClick(item);
@@ -31,33 +32,19 @@ export const FileListItem: React.FC<FileListItemProps> = ({
     if (onActionClick) onActionClick(item, action, e);
   };
 
-  // Get matching icon name and styling classes based on file type
-  const getIconDetails = () => {
-    if (type === 'folder') {
-      return {
-        name: 'folder',
-        classes: 'text-secondary group-hover:text-primary transition-colors icon-fill',
-      };
-    }
-    if (type === 'folder_shared') {
-      return {
-        name: 'folder_shared',
-        classes: 'text-secondary group-hover:text-primary transition-colors icon-fill',
-      };
-    }
-    
-    // File types
-    switch (fileType) {
-      case 'image':
-        return { name: icon || 'image', classes: 'text-primary/70 icon-fill' };
-      case 'document':
-        return { name: icon || 'description', classes: 'text-[#1b73e8] icon-fill' };
-      default:
-        return { name: icon || 'insert_drive_file', classes: 'text-secondary icon-fill' };
-    }
-  };
+  const iconDetails = getFileIconDetails(name, type);
+  const maxVisibleTags = 2;
+  const visibleTags = tags.slice(0, maxVisibleTags);
+  const extraTagsCount = tags.length - maxVisibleTags;
 
-  const iconDetails = getIconDetails();
+  const formatColorStyle = (colorCode: string) => {
+    const cleanColor = colorCode.startsWith('#') ? colorCode : `#${colorCode}`;
+    return {
+      backgroundColor: `${cleanColor}15`, // ~8% opacity
+      color: cleanColor,
+      borderColor: `${cleanColor}30`, // ~18% opacity
+    };
+  };
 
   return (
     <div
@@ -72,19 +59,49 @@ export const FileListItem: React.FC<FileListItemProps> = ({
         <span className="font-body-md text-body-md text-on-surface font-medium truncate">
           {name}
         </span>
+
+        {/* Visibility indicator */}
+        {type === 'file' && (
+          <span 
+            className="material-symbols-outlined text-[15px] text-secondary select-none shrink-0"
+            title={isPublic ? 'Public Document' : 'Private Document'}
+          >
+            {isPublic ? 'public' : 'lock'}
+          </span>
+        )}
         
         {tags.length > 0 && (
-          <div className="flex gap-1 ml-2 overflow-hidden flex-wrap max-h-5 hidden md:flex">
-            {tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant={
-                  tag === 'Urgent' ? 'error' : tag === 'Design' || tag === 'UI/UX' ? 'secondary' : 'primary'
-                }
-              >
-                {tag}
+          <div className="flex gap-1 ml-2 overflow-hidden flex-wrap max-h-5 hidden md:flex items-center">
+            {visibleTags.map((tag) => {
+              const details = tagDetails.find((t) => t.name.trim().toLowerCase() === tag.trim().toLowerCase());
+              if (details && details.color) {
+                const colorStyle = formatColorStyle(details.color);
+                return (
+                  <span
+                    key={tag}
+                    className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border select-none w-fit inline-flex items-center transition-colors"
+                    style={colorStyle}
+                  >
+                    {tag}
+                  </span>
+                );
+              }
+              return (
+                <Badge
+                  key={tag}
+                  variant={
+                    tag === 'Urgent' ? 'error' : tag === 'Design' || tag === 'UI/UX' ? 'secondary' : 'primary'
+                  }
+                >
+                  {tag}
+                </Badge>
+              );
+            })}
+            {extraTagsCount > 0 && (
+              <Badge variant="secondary">
+                +{extraTagsCount}
               </Badge>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -124,7 +141,7 @@ export const FileListItem: React.FC<FileListItemProps> = ({
               }}
             />
             {/* Action Popup */}
-            <div className="absolute right-2 top-10 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-1.5 w-40 z-50 animate-in fade-in zoom-in duration-100">
+            <div className="absolute right-2 top-10 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-1.5 w-44 z-50 animate-in fade-in zoom-in duration-100">
               <button
                 onClick={(e) => handleAction('open', e)}
                 className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
@@ -143,6 +160,26 @@ export const FileListItem: React.FC<FileListItemProps> = ({
               >
                 <span className="material-symbols-outlined text-[16px]">star</span> Star
               </button>
+              
+              {type === 'file' && (
+                <>
+                  <div className="border-t border-outline-variant/60 my-1" />
+                  <div className="px-3 py-1 text-[10px] font-bold text-secondary uppercase tracking-wider select-none flex items-center gap-1">
+                    <span>Visibility:</span>
+                    <span className="text-on-surface">{isPublic ? 'Public 🌐' : 'Private 🔒'}</span>
+                  </div>
+                  <button
+                    onClick={(e) => handleAction('toggle_visibility', e)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      {isPublic ? 'lock' : 'public'}
+                    </span>
+                    {isPublic ? 'Make Private' : 'Make Public'}
+                  </button>
+                </>
+              )}
+
               <div className="border-t border-outline-variant/60 my-1" />
               <button
                 onClick={(e) => handleAction('delete', e)}

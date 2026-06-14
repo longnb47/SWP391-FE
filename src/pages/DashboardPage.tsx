@@ -6,6 +6,8 @@ import FileList from '../components/dashboard/FileList';
 import UploadModal from '../components/dashboard/UploadModal';
 import { documentService } from '../services/documentService';
 import type { DocumentUploadResponse } from '../services/documentService';
+import { tagService } from '../services/tagService';
+import { getFileIconDetails } from '../lib/fileHelpers';
 import {
   mockSuggestedItems,
   mockFileItems,
@@ -14,6 +16,11 @@ import type {
   FileItem,
   SuggestedItem,
 } from '../features/dashboard/dashboard.mock';
+
+interface DocumentWithTags extends DocumentUploadResponse {
+  tags?: string[];
+  tagDetails?: { name: string; color: string }[];
+}
 
 // Utility helper to format bytes
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -33,7 +40,7 @@ export const DashboardPage: React.FC = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
   // Real API states
-  const [apiFiles, setApiFiles] = useState<DocumentUploadResponse[]>([]);
+  const [apiFiles, setApiFiles] = useState<DocumentWithTags[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
 
@@ -47,9 +54,27 @@ export const DashboardPage: React.FC = () => {
       setIsLoadingFiles(false);
       return;
     }
+    setIsLoadingFiles(true);
     const response = await documentService.getMyDocuments();
     if (response.data && response.data.success) {
-      setApiFiles(response.data.data);
+      const files = response.data.data;
+      // Fetch tags in parallel for each file
+      const filesWithTags = await Promise.all(
+        files.map(async (doc) => {
+          try {
+            const tagResponse = await tagService.getDocumentTags(doc.documentId);
+            if (tagResponse.data && tagResponse.data.success) {
+              const tagNames = tagResponse.data.data.map((t) => t.name);
+              const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+              return { ...doc, tags: tagNames, tagDetails };
+            }
+          } catch (e) {
+            console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+          }
+          return { ...doc, tags: [], tagDetails: [] };
+        })
+      );
+      setApiFiles(filesWithTags);
       setIsFallbackMode(false);
     } else {
       console.warn('API error or server offline. Falling back to local mock data.', response.error);
@@ -65,7 +90,7 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   // Map backend files to frontend FileItems
-  const mapApiFileToFileItem = (doc: DocumentUploadResponse): FileItem => {
+  const mapApiFileToFileItem = (doc: DocumentWithTags): FileItem => {
     const fileType = doc.contentType.startsWith('image/')
       ? 'image'
       : doc.contentType.includes('pdf') || doc.contentType.includes('word') || doc.contentType.includes('officedocument')
@@ -78,7 +103,7 @@ export const DashboardPage: React.FC = () => {
       type: 'file',
       fileType,
       icon: fileType === 'image' ? 'image' : 'description',
-      tags: [doc.status], // e.g. UPLOADED, READY
+      tags: doc.tags || [],
       owner: 'Me',
       lastModified: new Date(doc.uploadedAt).toLocaleDateString('en-US', {
         month: 'short',
@@ -86,6 +111,8 @@ export const DashboardPage: React.FC = () => {
         year: 'numeric',
       }),
       size: formatBytes(doc.fileSize),
+      isPublic: doc.isPublic,
+      tagDetails: doc.tagDetails || [],
     };
   };
 
@@ -202,6 +229,22 @@ export const DashboardPage: React.FC = () => {
       alert('Rename API is not supported yet by backend contract.');
     } else if (action === 'star') {
       alert('Starring API is not supported yet by backend contract.');
+    } else if (action === 'toggle_visibility') {
+      const numericId = Number(item.id);
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        const newVisibility = !item.isPublic;
+        const response = await documentService.updateDocumentVisibility(numericId, newVisibility);
+        if (response.data && response.data.success) {
+          alert(`Document visibility changed to ${newVisibility ? 'Public' : 'Private'} successfully!`);
+          fetchFiles();
+        } else {
+          alert(`Failed to update visibility: ${response.error || 'Server error'}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        alert(`Mock toggled visibility for: ${item.name}`);
+      }
     } else if (action === 'open') {
       handleItemClick(item);
     }
@@ -274,7 +317,7 @@ export const DashboardPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredFiles.map((file) => {
-              const isFolder = file.type.startsWith('folder');
+              const iconInfo = getFileIconDetails(file.name, file.type);
               return (
                 <div
                   key={file.id}
@@ -283,21 +326,32 @@ export const DashboardPage: React.FC = () => {
                 >
                   <div className="flex justify-between items-start">
                     <span 
-                      className={`material-symbols-outlined text-display-lg icon-fill select-none ${
-                        isFolder ? 'text-primary/70' : file.fileType === 'document' ? 'text-[#1b73e8]' : 'text-primary/50'
-                      }`}
+                      className={`material-symbols-outlined text-display-lg icon-fill select-none ${iconInfo.classes}`}
                     >
-                      {isFolder ? 'folder' : file.fileType === 'image' ? 'image' : 'description'}
+                      {iconInfo.name}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleItemActionClick(file, 'delete');
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {/* Visibility indicator in Grid View */}
+                      {file.type === 'file' && (
+                        <span 
+                          className="text-secondary material-symbols-outlined text-[16px] select-none mr-1"
+                          title={file.isPublic ? 'Public Document' : 'Private Document'}
+                        >
+                          {file.isPublic ? 'public' : 'lock'}
+                        </span>
+                      )}
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleItemActionClick(file, 'delete');
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <h4 className="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary transition-colors">
