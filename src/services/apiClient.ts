@@ -47,12 +47,32 @@ export const apiClient = {
       }
 
       if (!response.ok) {
-        const errorMessage = 
-          (data && typeof data === 'object' && 'message' in data && typeof (data as { message: unknown }).message === 'string')
-            ? (data as { message: string }).message
-            : typeof data === 'string'
-            ? data
-            : response.statusText || 'An error occurred during request';
+        let errorMessage = 'An error occurred during request';
+
+        if (data && typeof data === 'object') {
+          const resObj = data as Record<string, unknown>;
+          if ('errors' in resObj && Array.isArray(resObj.errors) && resObj.errors.length > 0) {
+            errorMessage = resObj.errors
+              .map((err) => {
+                if (err && typeof err === 'object') {
+                  const errObj = err as Record<string, unknown>;
+                  if (typeof errObj.message === 'string') {
+                    return typeof errObj.field === 'string'
+                      ? `${errObj.field}: ${errObj.message}`
+                      : errObj.message;
+                  }
+                }
+                return String(err);
+              })
+              .join(', ');
+          } else if ('message' in resObj && typeof resObj.message === 'string') {
+            errorMessage = resObj.message;
+          }
+        } else if (typeof data === 'string') {
+          errorMessage = data;
+        } else {
+          errorMessage = response.statusText || errorMessage;
+        }
 
         return {
           status,

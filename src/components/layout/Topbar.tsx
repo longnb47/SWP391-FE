@@ -8,6 +8,8 @@ export interface TopbarProps {
   onHelpClick?: () => void;
   onUpgradeClick?: () => void;
   onProfileClick?: () => void;
+  isLoggedIn?: boolean;
+  onLoginClick?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -17,12 +19,14 @@ export const Topbar: React.FC<TopbarProps> = ({
   onHelpClick,
   onUpgradeClick,
   onProfileClick,
+  isLoggedIn = false,
+  onLoginClick,
 }) => {
   const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
 
   return (
     <header className="flex justify-between items-center px-gutter w-full sticky top-0 z-30 shadow-sm bg-surface h-16 border-b border-outline-variant/30 select-none">
-      {/* Left Area: Mobile Menu Toggle & App Name (Only visible on mobile header) */}
+      {/* Left Area: Mobile Menu Toggle & App Name */}
       <div className="flex items-center">
         {onMobileMenuToggle && (
           <button
@@ -66,17 +70,26 @@ export const Topbar: React.FC<TopbarProps> = ({
           Upgrade
         </button>
 
-        {/* User Profile Avatar */}
-        <div
-          onClick={onProfileClick}
-          className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-2 cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors"
-        >
-          <img
-            src={userAvatar}
-            alt="User avatar"
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {/* User Profile Avatar / Log In Button */}
+        {isLoggedIn ? (
+          <div
+            onClick={onProfileClick}
+            className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-2 cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors"
+          >
+            <img
+              src={userAvatar}
+              alt="User avatar"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <button
+            onClick={onLoginClick}
+            className="bg-primary text-on-primary font-label-md text-label-md px-4 py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-semibold"
+          >
+            Log In
+          </button>
+        )}
       </div>
     </header>
   );

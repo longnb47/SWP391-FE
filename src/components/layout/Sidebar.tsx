@@ -2,6 +2,7 @@ import React from 'react';
 import Button from '../common/Button';
 import StorageUsageCard from '../dashboard/StorageUsageCard';
 import { mockStorageUsage } from '../../features/dashboard/dashboard.mock';
+import type { StorageUsage } from '../../features/dashboard/dashboard.mock';
 
 export interface SidebarProps {
   isOpen?: boolean;
@@ -10,6 +11,7 @@ export interface SidebarProps {
   onTabChange?: (tab: string) => void;
   onUploadClick?: () => void;
   onNewFolderClick?: () => void;
+  storage?: StorageUsage;
 }
 
 interface SidebarContentProps {
@@ -18,6 +20,7 @@ interface SidebarContentProps {
   onTabChange?: (tab: string) => void;
   onUploadClick?: () => void;
   onNewFolderClick?: () => void;
+  storage?: StorageUsage;
 }
 
 const navItems = [
@@ -35,6 +38,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onTabChange,
   onUploadClick,
   onNewFolderClick,
+  storage,
 }) => {
   const handleTabClick = (tabName: string) => {
     if (onTabChange) onTabChange(tabName);
@@ -147,7 +151,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Footer Area */}
       <div className="mt-auto px-3 pt-4 border-t border-outline-variant">
         {/* Storage usage widget */}
-        <StorageUsageCard storage={mockStorageUsage} />
+        <StorageUsageCard storage={storage || mockStorageUsage} />
         
         {/* Settings tab */}
         <a
@@ -179,6 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onUploadClick,
   onNewFolderClick,
+  storage,
 }) => {
   return (
     <>
@@ -189,6 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onTabChange={onTabChange}
           onUploadClick={onUploadClick}
           onNewFolderClick={onNewFolderClick}
+          storage={storage}
         />
       </aside>
 
@@ -208,6 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onTabChange={onTabChange}
               onUploadClick={onUploadClick}
               onNewFolderClick={onNewFolderClick}
+              storage={storage}
             />
           </aside>
         </div>

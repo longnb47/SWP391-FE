@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
 export interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +12,7 @@ export interface DashboardLayoutProps {
   onUploadClick?: () => void;
   onNewFolderClick?: () => void;
   fluid?: boolean;
+  storage?: StorageUsage;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -20,8 +23,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onUploadClick,
   onNewFolderClick,
   fluid = false,
+  storage,
 }) => {
+  const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const isLoggedIn = !!localStorage.getItem('token');
 
   const handleMobileMenuToggle = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -41,6 +47,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onTabChange={onTabChange}
         onUploadClick={onUploadClick}
         onNewFolderClick={onNewFolderClick}
+        storage={storage}
       />
 
       {/* Main Content Area */}
@@ -52,7 +59,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onNotificationClick={() => alert('Notifications clicked!')}
           onHelpClick={() => alert('Help center clicked!')}
           onUpgradeClick={() => alert('Upgrade modal clicked!')}
-          onProfileClick={() => alert('Profile menu clicked!')}
+          isLoggedIn={isLoggedIn}
+          onLoginClick={() => navigate('/login')}
+          onProfileClick={() => {
+            const confirmLogout = window.confirm('Are you sure you want to log out?');
+            if (confirmLogout) {
+              localStorage.removeItem('token');
+              localStorage.removeItem('userEmail');
+              window.location.href = '/login';
+            }
+          }}
         />
 
         {/* Scrollable Main Canvas */}

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import SuggestedFilesSection from '../components/dashboard/SuggestedFilesSection';
 import FileList from '../components/dashboard/FileList';
+import { documentService } from '../services/documentService';
+import type { DocumentUploadResponse } from '../services/documentService';
 import {
   mockSuggestedItems,
   mockFileItems,
@@ -12,103 +14,227 @@ import type {
   SuggestedItem,
 } from '../features/dashboard/dashboard.mock';
 
+// Utility helper to format bytes
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('My Files');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [fileItems, setFileItems] = useState<FileItem[]>(mockFileItems);
-  const [suggestedItems] = useState<SuggestedItem[]>(mockSuggestedItems);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Real API states
+  const [apiFiles, setApiFiles] = useState<DocumentUploadResponse[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
+
+  const isLoggedIn = !!localStorage.getItem('token');
+
+  // Load files from backend
+  const fetchFiles = async () => {
+    if (!isLoggedIn) {
+      setApiFiles([]);
+      setIsFallbackMode(false);
+      setIsLoadingFiles(false);
+      return;
+    }
+    const response = await documentService.getMyDocuments();
+    if (response.data && response.data.success) {
+      setApiFiles(response.data.data);
+      setIsFallbackMode(false);
+    } else {
+      console.warn('API error or server offline. Falling back to local mock data.', response.error);
+      setIsFallbackMode(true);
+    }
+    setIsLoadingFiles(false);
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Map backend files to frontend FileItems
+  const mapApiFileToFileItem = (doc: DocumentUploadResponse): FileItem => {
+    const fileType = doc.contentType.startsWith('image/')
+      ? 'image'
+      : doc.contentType.includes('pdf') || doc.contentType.includes('word') || doc.contentType.includes('officedocument')
+      ? 'document'
+      : 'file';
+
+    return {
+      id: String(doc.documentId),
+      name: doc.originalFileName,
+      type: 'file',
+      fileType,
+      icon: fileType === 'image' ? 'image' : 'description',
+      tags: [doc.status], // e.g. UPLOADED, READY
+      owner: 'Me',
+      lastModified: new Date(doc.uploadedAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      size: formatBytes(doc.fileSize),
+    };
+  };
+
+  // Compile final file list: mock folders + S3 files, or complete local mock if offline
+  const mockFolders = mockFileItems.filter((f) => f.type.startsWith('folder'));
+  const fileItems: FileItem[] = !isLoggedIn
+    ? []
+    : isFallbackMode
+    ? mockFileItems
+    : [...mockFolders, ...apiFiles.map(mapApiFileToFileItem)];
+
+  const suggestedItems: SuggestedItem[] = isLoggedIn ? mockSuggestedItems : [];
+
+  // Calculate dynamic storage usage metrics
+  const usedBytes = isLoggedIn && !isFallbackMode && apiFiles.length > 0
+    ? apiFiles.reduce((sum, f) => sum + f.fileSize, 0)
+    : isLoggedIn
+    ? 15 * 1024 * 1024 * 1024 // 15GB mock default
+    : 0; // 0 Bytes for guests
+  
+  const totalBytes = isLoggedIn && !isFallbackMode && apiFiles.length > 0
+    ? 2 * 1024 * 1024 * 1024 // 2GB Free tier limit
+    : isLoggedIn
+    ? 100 * 1024 * 1024 * 1024 // 100GB mock default
+    : 2 * 1024 * 1024 * 1024; // 2GB for guests
+
+  const usedPercentage = Math.min(100, Math.round((usedBytes / totalBytes) * 100));
+  const dynamicStorage = {
+    usedBytes,
+    totalBytes,
+    usedPercentage,
+    formattedUsed: formatBytes(usedBytes),
+    formattedTotal: isLoggedIn && !isFallbackMode && apiFiles.length > 0 ? '2 GB' : isLoggedIn ? '100 GB' : '2 GB',
+  };
 
   // Search filtering
   const filteredFiles = fileItems.filter((file) =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Live actions triggers
+  // Trigger S3 File Upload
   const handleUploadFile = () => {
-    setIsUploading(true);
-    const fileName = prompt('Enter the name of the file to upload:');
-    if (!fileName) {
-      setIsUploading(false);
+    if (!isLoggedIn) {
+      alert('Please log in to upload files.');
+      navigate('/login');
       return;
     }
+    // Dynamically create a file input in JavaScript
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,image/*';
+    
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
 
-    setTimeout(() => {
-      const extension = fileName.includes('.') ? '' : '.txt';
-      const fileType = fileName.match(/\.(png|jpg|jpeg|gif)$/i)
-        ? 'image'
-        : fileName.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)
-        ? 'document'
-        : 'file';
+      // Validate file size (Max 20MB according to contract)
+      const MAX_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB in bytes
+      if (file.size === 0) {
+        alert('Upload failed: Empty files are not allowed.');
+        return;
+      }
+      if (file.size > MAX_SIZE_LIMIT) {
+        alert('Upload failed: File size exceeds the maximum limit of 20MB.');
+        return;
+      }
 
-      const newFile: FileItem = {
-        id: `f-${Date.now()}`,
-        name: `${fileName}${extension}`,
-        type: 'file',
-        fileType,
-        icon: fileType === 'image' ? 'image' : 'description',
-        tags: ['New', 'Uploaded'],
-        owner: 'Me',
-        lastModified: 'Just now',
-        size: '12 KB',
-      };
-
-      setFileItems([newFile, ...fileItems]);
+      setIsUploading(true);
+      const response = await documentService.uploadDocument(file);
+      
+      if (response.data && response.data.success) {
+        alert('File uploaded successfully to backend!');
+        setIsLoadingFiles(true);
+        fetchFiles(); // Reload list
+      } else {
+        alert(`Upload failed: ${response.error || 'Server error'}`);
+      }
       setIsUploading(false);
-      alert('File uploaded successfully!');
-    }, 800);
+    };
+    
+    input.click();
   };
 
   const handleNewFolder = () => {
-    const folderName = prompt('Enter new folder name:');
-    if (!folderName) return;
-
-    const newFolder: FileItem = {
-      id: `f-${Date.now()}`,
-      name: folderName,
-      type: 'folder',
-      tags: ['Local'],
-      owner: 'Me',
-      lastModified: 'Just now',
-      size: '--',
-    };
-
-    setFileItems([newFolder, ...fileItems]);
-    alert(`Folder "${folderName}" created successfully!`);
+    if (!isLoggedIn) {
+      alert('Please log in to create folders.');
+      navigate('/login');
+      return;
+    }
+    alert('Creating folders is mocked in current version.');
   };
 
   const handleItemClick = (item: FileItem) => {
+    if (!isLoggedIn) {
+      alert('Please log in to view file details.');
+      navigate('/login');
+      return;
+    }
     navigate(`/document/${item.id}`);
   };
 
   const handleSuggestedItemClick = (item: SuggestedItem) => {
+    if (!isLoggedIn) {
+      alert('Please log in to view file details.');
+      navigate('/login');
+      return;
+    }
     navigate(`/document/${item.id}`);
   };
 
   const handleAiActionClick = (item: SuggestedItem) => {
+    if (!isLoggedIn) {
+      alert('Please log in to use AI actions.');
+      navigate('/login');
+      return;
+    }
     alert(`AI analysis triggered for: "${item.name}"!`);
   };
 
-  const handleItemActionClick = (item: FileItem, action: string) => {
+  const handleItemActionClick = async (item: FileItem, action: string) => {
+    if (!isLoggedIn) {
+      alert('Please log in to perform this action.');
+      navigate('/login');
+      return;
+    }
     if (action === 'delete') {
       const confirmDelete = window.confirm(`Are you sure you want to delete "${item.name}"?`);
-      if (confirmDelete) {
-        setFileItems(fileItems.filter((f) => f.id !== item.id));
+      if (!confirmDelete) return;
+
+      // Check if it's a real API file (numeric ID)
+      const numericId = Number(item.id);
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        const response = await documentService.deleteDocument(numericId);
+        if (response.data && response.data.success) {
+          alert('Document moved to trash successfully!');
+          fetchFiles();
+        } else {
+          alert(`Failed to delete document: ${response.error || 'Server error'}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        // Mock fallback delete
+        alert(`Mock soft-deleted: ${item.name}`);
       }
     } else if (action === 'rename') {
-      const newName = prompt(`Enter new name for "${item.name}":`, item.name);
-      if (newName) {
-        setFileItems(
-          fileItems.map((f) => (f.id === item.id ? { ...f, name: newName } : f))
-        );
-      }
+      alert('Rename API is not supported yet by backend contract.');
     } else if (action === 'star') {
-      setFileItems(
-        fileItems.map((f) => (f.id === item.id ? { ...f, isStarred: !f.isStarred } : f))
-      );
-      alert(`${item.name} has been ${item.isStarred ? 'unstarred' : 'starred'}!`);
+      alert('Starring API is not supported yet by backend contract.');
     } else if (action === 'open') {
       handleItemClick(item);
     }
@@ -121,6 +247,7 @@ export const DashboardPage: React.FC = () => {
       onSearch={setSearchQuery}
       onUploadClick={handleUploadFile}
       onNewFolderClick={handleNewFolder}
+      storage={dynamicStorage}
     >
       {/* 1. Suggested Bento Grid Area */}
       {searchQuery === '' && (
@@ -173,7 +300,7 @@ export const DashboardPage: React.FC = () => {
         {viewMode === 'list' ? (
           <FileList
             items={filteredFiles}
-            isLoading={isUploading}
+            isLoading={isLoadingFiles || isUploading}
             onItemClick={handleItemClick}
             onItemActionClick={handleItemActionClick}
           />
