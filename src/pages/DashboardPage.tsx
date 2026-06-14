@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import SuggestedFilesSection from '../components/dashboard/SuggestedFilesSection';
 import FileList from '../components/dashboard/FileList';
+import UploadModal from '../components/dashboard/UploadModal';
 import { documentService } from '../services/documentService';
 import type { DocumentUploadResponse } from '../services/documentService';
 import {
@@ -29,7 +30,7 @@ export const DashboardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('My Files');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
   // Real API states
   const [apiFiles, setApiFiles] = useState<DocumentUploadResponse[]>([]);
@@ -125,48 +126,14 @@ export const DashboardPage: React.FC = () => {
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Trigger S3 File Upload
+  // Trigger S3 File Upload Modal
   const handleUploadFile = () => {
     if (!isLoggedIn) {
       alert('Please log in to upload files.');
       navigate('/login');
       return;
     }
-    // Dynamically create a file input in JavaScript
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,image/*';
-    
-    input.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (!file) return;
-
-      // Validate file size (Max 20MB according to contract)
-      const MAX_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB in bytes
-      if (file.size === 0) {
-        alert('Upload failed: Empty files are not allowed.');
-        return;
-      }
-      if (file.size > MAX_SIZE_LIMIT) {
-        alert('Upload failed: File size exceeds the maximum limit of 20MB.');
-        return;
-      }
-
-      setIsUploading(true);
-      const response = await documentService.uploadDocument(file);
-      
-      if (response.data && response.data.success) {
-        alert('File uploaded successfully to backend!');
-        setIsLoadingFiles(true);
-        fetchFiles(); // Reload list
-      } else {
-        alert(`Upload failed: ${response.error || 'Server error'}`);
-      }
-      setIsUploading(false);
-    };
-    
-    input.click();
+    setIsUploadModalOpen(true);
   };
 
   const handleNewFolder = () => {
@@ -300,7 +267,7 @@ export const DashboardPage: React.FC = () => {
         {viewMode === 'list' ? (
           <FileList
             items={filteredFiles}
-            isLoading={isLoadingFiles || isUploading}
+            isLoading={isLoadingFiles}
             onItemClick={handleItemClick}
             onItemActionClick={handleItemActionClick}
           />
@@ -346,6 +313,12 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </section>
+      
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={fetchFiles}
+      />
     </DashboardLayout>
   );
 };
