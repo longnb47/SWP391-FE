@@ -20,6 +20,13 @@ export const OAuth2RedirectHandler: React.FC = () => {
       // Clean query parameters from URL and redirect to dashboard
       navigate('/dashboard', { replace: true });
     } else {
+      // If we already have tokens in localStorage, it means this is a React Strict Mode
+      // double-render remount where the URL was already cleared in the first execution.
+      if (localStorage.getItem('token') && localStorage.getItem('refreshToken')) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
       console.error('Google OAuth2 callback missing token or refreshToken.');
       alert('Authentication failed: Missing credentials from Google login.');
       navigate('/login', { replace: true });
