@@ -34,6 +34,67 @@ export const apiClient = {
       const response = await fetch(url, config);
       const status = response.status;
 
+      if (status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          try {
+            const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+              if (refreshData && refreshData.success && refreshData.data) {
+                const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshData.data;
+                localStorage.setItem('token', newAccessToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
+
+                // Retry original request with new token
+                const retryHeaders = new Headers(options.headers);
+                if (!retryHeaders.has('Content-Type') && !(options.body instanceof FormData)) {
+                  retryHeaders.set('Content-Type', 'application/json');
+                }
+                retryHeaders.set('Authorization', `Bearer ${newAccessToken}`);
+                const retryConfig: RequestInit = {
+                  ...options,
+                  headers: retryHeaders,
+                };
+                const retryResponse = await fetch(url, retryConfig);
+                const retryStatus = retryResponse.status;
+                const retryContentType = retryResponse.headers.get('content-type');
+                let retryData: unknown = null;
+                if (retryContentType && retryContentType.includes('application/json')) {
+                  retryData = await retryResponse.json();
+                } else {
+                  retryData = await retryResponse.text();
+                }
+
+                if (retryResponse.ok) {
+                  return {
+                    status: retryStatus,
+                    data: retryData as T,
+                  };
+                }
+              }
+            }
+          } catch (refreshErr) {
+            console.error('Auto token refresh failed:', refreshErr);
+          }
+        }
+
+        // Clean credentials on failure/no-token and redirect to login if not already on public routes
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userEmail');
+        
+        const path = window.location.pathname;
+        if (path !== '/login' && path !== '/register' && path !== '/verify-otp' && path !== '/dashboard') {
+          window.location.href = '/login';
+        }
+      }
+
       if (status === 204) {
         return { status, data: undefined as unknown as T };
       }

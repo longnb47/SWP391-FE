@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import { authService } from '../services/authService';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
 export interface DashboardLayoutProps {
@@ -61,10 +62,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onUpgradeClick={() => alert('Upgrade modal clicked!')}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
-          onProfileClick={() => {
+          onProfileClick={async () => {
             const confirmLogout = window.confirm('Are you sure you want to log out?');
             if (confirmLogout) {
+              const refreshToken = localStorage.getItem('refreshToken');
+              if (refreshToken) {
+                try {
+                  await authService.logout(refreshToken);
+                } catch (err) {
+                  console.error('Logout error on backend:', err);
+                }
+              }
               localStorage.removeItem('token');
+              localStorage.removeItem('refreshToken');
               localStorage.removeItem('userEmail');
               window.location.href = '/login';
             }

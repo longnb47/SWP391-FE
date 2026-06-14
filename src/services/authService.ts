@@ -4,6 +4,7 @@ import type { BackendResponse } from './documentService';
 
 export interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   userId: number;
   email: string;
@@ -39,6 +40,16 @@ export const authService = {
 
   async resendOtp(email: string): Promise<ApiResponse<BackendResponse<ResendOtpResponse>>> {
     return apiClient.post<BackendResponse<ResendOtpResponse>>('/auth/resend-otp', { email });
+  },
+
+  async logout(refreshToken: string): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>('/auth/logout', { refreshToken });
+  },
+
+  getGoogleLoginUrl(): string {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+    const baseUrl = apiBaseUrl.endsWith('/api') ? apiBaseUrl.slice(0, -4) : apiBaseUrl;
+    return `${baseUrl}/oauth2/authorization/google`;
   }
 };
 
