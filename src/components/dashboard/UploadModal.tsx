@@ -303,10 +303,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
             {/* Available Tags Dropdown list */}
             <div ref={dropdownRef} className="relative w-full">
-              <div
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="relative cursor-pointer"
-              >
+              <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary select-none">
                   search
                 </span>
@@ -321,9 +318,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   onFocus={() => setIsDropdownOpen(true)}
                   className="w-full bg-surface border border-surface-variant rounded-lg py-2.5 pl-10 pr-10 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                 />
-                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary select-none transition-transform duration-200">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
+                  className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary select-none transition-transform duration-200 cursor-pointer p-0.5 hover:bg-surface-container rounded-full"
+                >
                   {isDropdownOpen ? 'expand_less' : 'expand_more'}
-                </span>
+                </button>
               </div>
 
               {/* Dropdown Box */}
