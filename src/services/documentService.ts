@@ -11,6 +11,7 @@ export interface DocumentUploadResponse {
   fileSize: number;
   isPublic: boolean;
   isDeleted: boolean;
+  isStarred: boolean;
   status: 'UPLOADED' | 'PARSING' | 'INDEXING' | 'READY' | 'FAILED';
   uploadedAt: string;
   deletedAt: string | null;
@@ -96,6 +97,33 @@ export const documentService = {
         body: JSON.stringify({ folderId })
       }
     );
+  },
+
+  async getStarredDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/starred');
+  },
+
+  async starDocument(documentId: number, isStarred: boolean): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.request<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}/star?isStarred=${isStarred}`,
+      { method: 'PATCH' }
+    );
+  },
+
+  async getPublicDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/public');
+  },
+
+  async getPublicDocumentDetail(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/public/${documentId}`);
+  },
+
+  async getPublicDocumentPreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/public/${documentId}/preview-url`);
+  },
+
+  async getPublicDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/public/${documentId}/download-url`);
   }
 };
 export default documentService;

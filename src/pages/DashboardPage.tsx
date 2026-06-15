@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
-import SuggestedFilesSection from '../components/dashboard/SuggestedFilesSection';
 import FileList from '../components/dashboard/FileList';
 import UploadModal from '../components/dashboard/UploadModal';
 import { documentService } from '../services/documentService';
@@ -14,12 +13,10 @@ import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import {
-  mockSuggestedItems,
   mockFileItems,
 } from '../features/dashboard/dashboard.mock';
 import type {
   FileItem,
-  SuggestedItem,
 } from '../features/dashboard/dashboard.mock';
 
 interface DocumentWithTags extends DocumentUploadResponse {
@@ -95,55 +92,29 @@ export const DashboardPage: React.FC = () => {
     setIsLoadingFiles(true);
     
     try {
-      if (currentFolderId === null) {
-        // Fetch folders and root documents in parallel
-        const [foldersResponse, docsResponse] = await Promise.all([
-          folderService.getFolders(),
-          documentService.getMyDocuments(),
-        ]);
-        
-        let rootDocs: DocumentUploadResponse[] = [];
-        if (docsResponse.data && docsResponse.data.success) {
-          // Filter root documents only
-          rootDocs = docsResponse.data.data.filter((doc) => doc.folderId === null);
-        }
-        
-        if (foldersResponse.data && foldersResponse.data.success) {
-          setApiFolders(foldersResponse.data.data);
-        } else {
-          setApiFolders([]);
-        }
-        
-        // Fetch tags for root documents
-        const docsWithTags = await Promise.all(
-          rootDocs.map(async (doc) => {
-            try {
-              const tagResponse = await tagService.getDocumentTags(doc.documentId);
-              if (tagResponse.data && tagResponse.data.success) {
-                const tagNames = tagResponse.data.data.map((t) => t.name);
-                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
-                return { ...doc, tags: tagNames, tagDetails };
-              }
-            } catch (e) {
-              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
-            }
-            return { ...doc, tags: [], tagDetails: [] };
-          })
-        );
-        
-        setApiFiles(docsWithTags);
-        setIsFallbackMode(false);
-      } else {
-        // Fetch documents in folder
-        setApiFolders([]); // No folders inside folders
-        const docsResponse = await folderService.getFolderDocuments(currentFolderId);
-        
-        if (docsResponse.data && docsResponse.data.success) {
-          const folderDocs = docsResponse.data.data;
+      if (activeTab === 'My Files') {
+        if (currentFolderId === null) {
+          // Fetch folders and root documents in parallel
+          const [foldersResponse, docsResponse] = await Promise.all([
+            folderService.getFolders(),
+            documentService.getMyDocuments(),
+          ]);
           
-          // Fetch tags for folder documents
+          let rootDocs: DocumentUploadResponse[] = [];
+          if (docsResponse.data && docsResponse.data.success) {
+            // Filter root documents only
+            rootDocs = docsResponse.data.data.filter((doc) => doc.folderId === null);
+          }
+          
+          if (foldersResponse.data && foldersResponse.data.success) {
+            setApiFolders(foldersResponse.data.data);
+          } else {
+            setApiFolders([]);
+          }
+          
+          // Fetch tags for root documents
           const docsWithTags = await Promise.all(
-            folderDocs.map(async (doc) => {
+            rootDocs.map(async (doc) => {
               try {
                 const tagResponse = await tagService.getDocumentTags(doc.documentId);
                 if (tagResponse.data && tagResponse.data.success) {
@@ -161,9 +132,127 @@ export const DashboardPage: React.FC = () => {
           setApiFiles(docsWithTags);
           setIsFallbackMode(false);
         } else {
-          console.warn(`Failed to fetch documents for folder ${currentFolderId}`);
-          setApiFiles([]);
+          // Fetch documents in folder
+          setApiFolders([]); // No folders inside folders
+          const docsResponse = await folderService.getFolderDocuments(currentFolderId);
+          
+          if (docsResponse.data && docsResponse.data.success) {
+            const folderDocs = docsResponse.data.data;
+            
+            // Fetch tags for folder documents
+            const docsWithTags = await Promise.all(
+              folderDocs.map(async (doc) => {
+                try {
+                  const tagResponse = await tagService.getDocumentTags(doc.documentId);
+                  if (tagResponse.data && tagResponse.data.success) {
+                    const tagNames = tagResponse.data.data.map((t) => t.name);
+                    const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                    return { ...doc, tags: tagNames, tagDetails };
+                  }
+                } catch (e) {
+                  console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+                }
+                return { ...doc, tags: [], tagDetails: [] };
+              })
+            );
+            
+            setApiFiles(docsWithTags);
+            setIsFallbackMode(false);
+          } else {
+            console.warn(`Failed to fetch documents for folder ${currentFolderId}`);
+            setApiFiles([]);
+          }
         }
+      } else if (activeTab === 'Starred') {
+        const [foldersResponse, docsResponse] = await Promise.all([
+          folderService.getStarredFolders(),
+          documentService.getStarredDocuments(),
+        ]);
+
+        if (foldersResponse.data && foldersResponse.data.success) {
+          setApiFolders(foldersResponse.data.data);
+        } else {
+          setApiFolders([]);
+        }
+
+        let starredDocs: DocumentUploadResponse[] = [];
+        if (docsResponse.data && docsResponse.data.success) {
+          starredDocs = docsResponse.data.data;
+        }
+
+        const docsWithTags = await Promise.all(
+          starredDocs.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        setApiFiles(docsWithTags);
+        setIsFallbackMode(false);
+      } else if (activeTab === 'Community') {
+        setApiFolders([]);
+        const docsResponse = await documentService.getPublicDocuments();
+
+        let publicDocs: DocumentUploadResponse[] = [];
+        if (docsResponse.data && docsResponse.data.success) {
+          publicDocs = docsResponse.data.data;
+        }
+
+        const docsWithTags = await Promise.all(
+          publicDocs.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getPublicDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        setApiFiles(docsWithTags);
+        setIsFallbackMode(false);
+      } else if (activeTab === 'Trash') {
+        setApiFolders([]);
+        const docsResponse = await documentService.getTrashDocuments();
+
+        let trashDocs: DocumentUploadResponse[] = [];
+        if (docsResponse.data && docsResponse.data.success) {
+          trashDocs = docsResponse.data.data;
+        }
+
+        const docsWithTags = await Promise.all(
+          trashDocs.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        setApiFiles(docsWithTags);
+        setIsFallbackMode(false);
+      } else {
+        setApiFiles([]);
+        setApiFolders([]);
+        setIsFallbackMode(false);
       }
     } catch (e) {
       console.warn('API error or server offline. Falling back to local mock data.', e);
@@ -176,7 +265,13 @@ export const DashboardPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFolderId]);
+  }, [currentFolderId, activeTab]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentFolderId(null);
+    setCurrentFolderName(null);
+  }, [activeTab]);
 
   // Map backend files to frontend FileItems
   const mapApiFileToFileItem = (doc: DocumentWithTags): FileItem => {
@@ -201,6 +296,7 @@ export const DashboardPage: React.FC = () => {
       }),
       size: formatBytes(doc.fileSize),
       isPublic: doc.isPublic,
+      isStarred: doc.isStarred,
       tagDetails: doc.tagDetails || [],
       folderId: doc.folderId,
     };
@@ -211,13 +307,28 @@ export const DashboardPage: React.FC = () => {
     ? []
     : isFallbackMode
     ? mockFileItems.filter((item) => {
-        if (currentFolderId === null) {
-          // At root, show folders and root files
-          return item.type.startsWith('folder') || !item.folderId;
-        } else {
-          // Inside a folder, show files belonging to this folder (matches folderId string or number)
-          return item.type === 'file' && String(item.folderId) === String(currentFolderId);
+        const itemDeleted = !!item.isDeleted;
+        if (activeTab === 'Trash') {
+          return itemDeleted && item.type === 'file';
         }
+        if (itemDeleted) {
+          return false;
+        }
+
+        if (activeTab === 'My Files') {
+          if (currentFolderId === null) {
+            // At root, show folders and root files
+            return item.type.startsWith('folder') || !item.folderId;
+          } else {
+            // Inside a folder, show files belonging to this folder (matches folderId string or number)
+            return item.type === 'file' && String(item.folderId) === String(currentFolderId);
+          }
+        } else if (activeTab === 'Starred') {
+          return !!item.isStarred;
+        } else if (activeTab === 'Community') {
+          return !!item.isPublic && item.type === 'file';
+        }
+        return true;
       })
     : [
         ...apiFolders.map((folder) => ({
@@ -231,11 +342,12 @@ export const DashboardPage: React.FC = () => {
             year: 'numeric',
           }),
           size: '--',
+          isStarred: folder.isStarred,
         })),
         ...apiFiles.map(mapApiFileToFileItem),
       ];
 
-  const suggestedItems: SuggestedItem[] = isLoggedIn ? mockSuggestedItems : [];
+
 
   // Calculate dynamic storage usage metrics
   const usedBytes = isLoggedIn && !isFallbackMode && apiFiles.length > 0
@@ -297,23 +409,7 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleSuggestedItemClick = (item: SuggestedItem) => {
-    if (!isLoggedIn) {
-      alert('Please log in to view file details.');
-      navigate('/login');
-      return;
-    }
-    navigate(`/document/${item.id}`);
-  };
 
-  const handleAiActionClick = (item: SuggestedItem) => {
-    if (!isLoggedIn) {
-      alert('Please log in to use AI actions.');
-      navigate('/login');
-      return;
-    }
-    alert(`AI analysis triggered for: "${item.name}"!`);
-  };
 
   const handleItemActionClick = async (item: FileItem, action: string) => {
     if (!isLoggedIn) {
@@ -341,10 +437,48 @@ export const DashboardPage: React.FC = () => {
           setIsLoadingFiles(false);
         }
       } else {
-        // Mock fallback delete
-        const idx = mockFileItems.findIndex(f => f.id === item.id);
-        if (idx !== -1) mockFileItems.splice(idx, 1);
+        const mockItem = mockFileItems.find((f) => f.id === item.id);
+        if (mockItem) mockItem.isDeleted = true;
         alert(`Mock soft-deleted: ${item.name}`);
+        fetchFiles();
+      }
+    } else if (action === 'restore') {
+      const numericId = Number(item.id);
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        const response = await documentService.restoreDocument(numericId);
+        if (response.data && response.data.success) {
+          alert('Document restored successfully!');
+          fetchFiles();
+        } else {
+          alert(`Failed to restore document: ${response.error || 'Server error'}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        const mockItem = mockFileItems.find((f) => f.id === item.id);
+        if (mockItem) mockItem.isDeleted = false;
+        alert(`Mock restored document: ${item.name}`);
+        fetchFiles();
+      }
+    } else if (action === 'delete_permanent') {
+      const confirmDelete = window.confirm(`Are you sure you want to permanently delete "${item.name}"? This action cannot be undone.`);
+      if (!confirmDelete) return;
+
+      const numericId = Number(item.id);
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        const response = await documentService.deleteDocumentPermanently(numericId);
+        if (response.data && response.data.success) {
+          alert('Document permanently deleted!');
+          fetchFiles();
+        } else {
+          alert(`Failed to delete permanently: ${response.error || 'Server error'}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        const idx = mockFileItems.findIndex((f) => f.id === item.id);
+        if (idx !== -1) mockFileItems.splice(idx, 1);
+        alert(`Mock permanently deleted document: ${item.name}`);
         fetchFiles();
       }
     } else if (action === 'rename') {
@@ -375,8 +509,36 @@ export const DashboardPage: React.FC = () => {
         alert(`Mock moved "${item.name}" out of folder.`);
         fetchFiles();
       }
-    } else if (action === 'star') {
-      alert('Starring API is not supported yet by backend contract.');
+    } else if (action === 'toggle_star') {
+      const numericId = Number(item.id);
+      const newStar = !item.isStarred;
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        let success: boolean;
+        let error: string;
+        if (item.type === 'folder' || item.type === 'folder_shared') {
+          const response = await folderService.starFolder(numericId, newStar);
+          success = !!(response.data && response.data.success);
+          error = response.error || '';
+        } else {
+          const response = await documentService.starDocument(numericId, newStar);
+          success = !!(response.data && response.data.success);
+          error = response.error || '';
+        }
+
+        if (success) {
+          alert(`${newStar ? 'Starred' : 'Unstarred'} successfully!`);
+          fetchFiles();
+        } else {
+          alert(`Failed to update starred status: ${error || 'Server error'}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        const mockItem = mockFileItems.find((f) => f.id === item.id);
+        if (mockItem) mockItem.isStarred = newStar;
+        alert(`Mock toggled star status for: ${item.name}`);
+        fetchFiles();
+      }
     } else if (action === 'toggle_visibility') {
       const numericId = Number(item.id);
       if (!isNaN(numericId) && !isFallbackMode) {
@@ -496,16 +658,7 @@ export const DashboardPage: React.FC = () => {
       onNewFolderClick={handleNewFolder}
       storage={dynamicStorage}
     >
-      {/* 1. Suggested Bento Grid Area */}
-      {searchQuery === '' && (
-        <SuggestedFilesSection
-          items={suggestedItems}
-          onItemClick={handleSuggestedItemClick}
-          onAiActionClick={handleAiActionClick}
-        />
-      )}
-
-      {/* 2. Main File List / Grid Section */}
+      {/* Main File List / Grid Section */}
       <section className="space-y-4">
         {/* Section Header with View Toggles */}
         <div className="flex items-center justify-between">
@@ -519,9 +672,9 @@ export const DashboardPage: React.FC = () => {
                     setCurrentFolderId(null);
                     setCurrentFolderName(null);
                   }}
-                  className="cursor-pointer hover:text-primary transition-colors"
+                  className="cursor-pointer hover:text-primary transition-colors font-bold text-on-surface"
                 >
-                  My Files
+                  {activeTab}
                 </span>
                 {currentFolderName && (
                   <>
@@ -572,6 +725,8 @@ export const DashboardPage: React.FC = () => {
             isLoading={isLoadingFiles}
             onItemClick={handleItemClick}
             onItemActionClick={handleItemActionClick}
+            isTrash={activeTab === 'Trash'}
+            isCommunity={activeTab === 'Community'}
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -601,15 +756,43 @@ export const DashboardPage: React.FC = () => {
                         </span>
                       )}
                       
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleItemActionClick(file, 'delete');
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                      </button>
+                      {activeTab === 'Trash' ? (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleItemActionClick(file, 'restore');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-primary rounded transition-opacity cursor-pointer select-none"
+                            title="Restore"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">restore</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleItemActionClick(file, 'delete_permanent');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
+                            title="Delete Permanently"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete_forever</span>
+                          </button>
+                        </>
+                      ) : activeTab === 'Community' ? (
+                        null
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleItemActionClick(file, 'delete');
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
+                          title="Delete"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div>

@@ -10,6 +10,7 @@ export interface FileItem {
   size: string;
   isStarred?: boolean;
   isPublic?: boolean;
+  isDeleted?: boolean;
   tagDetails?: { name: string; color: string }[];
   folderId?: number | string | null;
 }

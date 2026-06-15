@@ -7,6 +7,8 @@ export interface FileListProps {
   isLoading?: boolean;
   onItemClick?: (item: FileItem) => void;
   onItemActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
+  isTrash?: boolean;
+  isCommunity?: boolean;
 }
 
 export const FileList: React.FC<FileListProps> = ({
@@ -14,6 +16,8 @@ export const FileList: React.FC<FileListProps> = ({
   isLoading = false,
   onItemClick,
   onItemActionClick,
+  isTrash = false,
+  isCommunity = false,
 }) => {
   if (isLoading) {
     return (
@@ -69,6 +73,8 @@ export const FileList: React.FC<FileListProps> = ({
             item={item}
             onItemClick={onItemClick}
             onActionClick={onItemActionClick}
+            isTrash={isTrash}
+            isCommunity={isCommunity}
           />
         ))}
       </div>

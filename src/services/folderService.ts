@@ -6,6 +6,7 @@ export interface DocumentFolderResponse {
   folderId: number;
   userId: number;
   name: string;
+  isStarred: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,17 @@ export const folderService = {
 
   async getFolderDocuments(folderId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(`/document-folders/${folderId}/documents`);
+  },
+
+  async getStarredFolders(): Promise<ApiResponse<BackendResponse<DocumentFolderResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentFolderResponse[]>>('/document-folders/starred');
+  },
+
+  async starFolder(folderId: number, isStarred: boolean): Promise<ApiResponse<BackendResponse<DocumentFolderResponse>>> {
+    return apiClient.request<BackendResponse<DocumentFolderResponse>>(
+      `/document-folders/${folderId}/star?isStarred=${isStarred}`,
+      { method: 'PATCH' }
+    );
   },
 };
 
