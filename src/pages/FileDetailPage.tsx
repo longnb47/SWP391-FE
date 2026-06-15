@@ -222,6 +222,7 @@ export const FileDetailPage: React.FC = () => {
             }
           }}
           onShareClick={() => alert(`Sharing "${documentDetails.name}" link...`)}
+          onBack={() => navigate('/dashboard')}
         />
 
         {/* Right Side: AI Assistant Chat (40% width) */}

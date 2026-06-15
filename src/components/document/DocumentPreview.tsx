@@ -10,6 +10,7 @@ export interface DocumentPreviewProps {
   contentType: string | null;
   onDownloadClick?: () => void;
   onShareClick?: () => void;
+  onBack?: () => void;
 }
 
 export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
@@ -20,6 +21,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   contentType,
   onDownloadClick,
   onShareClick,
+  onBack,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(100);
 
@@ -304,6 +306,15 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       {/* Document Toolbar */}
       <div className="h-14 border-b border-surface-container-high flex items-center justify-between px-container-padding bg-surface-bright shrink-0 select-none">
         <div className="flex items-center gap-stack-md min-w-0">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-1.5 text-secondary hover:text-on-surface hover:bg-surface-container rounded-full transition-colors cursor-pointer mr-1 shrink-0 flex items-center justify-center"
+              title="Go Back"
+            >
+              <span className="material-symbols-outlined text-[20px] font-bold">arrow_back</span>
+            </button>
+          )}
           <div className={`w-8 h-8 rounded ${iconInfo.bg} flex items-center justify-center shrink-0`}>
             <span className="material-symbols-outlined text-[20px] select-none">{iconInfo.icon}</span>
           </div>
