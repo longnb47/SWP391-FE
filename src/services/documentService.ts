@@ -4,6 +4,7 @@ import type { ApiResponse } from './apiClient';
 export interface DocumentUploadResponse {
   documentId: number;
   userId: number;
+  folderId: number | null;
   originalFileName: string;
   s3Key: string;
   contentType: string;
@@ -75,6 +76,26 @@ export const documentService = {
 
   async getDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
     return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/${documentId}/download-url`);
+  },
+
+  async renameDocument(documentId: number, name: string): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.request<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}/rename`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ originalFileName: name })
+      }
+    );
+  },
+
+  async moveDocumentToFolder(documentId: number, folderId: number | null): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.request<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}/folder`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ folderId })
+      }
+    );
   }
 };
 export default documentService;

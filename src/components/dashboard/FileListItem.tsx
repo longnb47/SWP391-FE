@@ -154,15 +154,30 @@ export const FileListItem: React.FC<FileListItemProps> = ({
               >
                 <span className="material-symbols-outlined text-[16px]">edit</span> Rename
               </button>
-              <button
-                onClick={(e) => handleAction('star', e)}
-                className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[16px]">star</span> Star
-              </button>
               
               {type === 'file' && (
                 <>
+                  <button
+                    onClick={(e) => handleAction('star', e)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">star</span> Star
+                  </button>
+                  <button
+                    onClick={(e) => handleAction('move_to', e)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">drive_file_move</span> Move to Folder...
+                  </button>
+                  {item.folderId !== null && item.folderId !== undefined && (
+                    <button
+                      onClick={(e) => handleAction('move_out', e)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">logout</span> Move out of Folder
+                    </button>
+                  )}
+                  
                   <div className="border-t border-outline-variant/60 my-1" />
                   <div className="px-3 py-1 text-[10px] font-bold text-secondary uppercase tracking-wider select-none flex items-center gap-1">
                     <span>Visibility:</span>

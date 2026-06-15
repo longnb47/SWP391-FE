@@ -11,6 +11,7 @@ export interface FileItem {
   isStarred?: boolean;
   isPublic?: boolean;
   tagDetails?: { name: string; color: string }[];
+  folderId?: number | string | null;
 }
 
 export interface SuggestedItem {
@@ -106,6 +107,7 @@ export const mockFileItems: FileItem[] = [
       { name: 'Urgent', color: '#ef4444' },
       { name: 'Graphics', color: '#14b8a6' },
     ],
+    folderId: 'f1',
   },
   {
     id: 'f3',
@@ -118,6 +120,7 @@ export const mockFileItems: FileItem[] = [
     lastModified: 'Oct 20, 2023',
     size: '124 KB',
     tagDetails: [{ name: 'Marketing', color: '#f59e0b' }],
+    folderId: 'f1',
   },
   {
     id: 'f4',

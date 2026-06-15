@@ -7,12 +7,14 @@ export interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUploadSuccess: () => void;
+  folderId?: number | null;
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
   onUploadSuccess,
+  folderId = null,
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [selectedTags, setSelectedTags] = useState<TagResponse[]>([]);
@@ -174,7 +176,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           }
         }
 
-        alert('File uploaded and tags linked successfully!');
+        // 3. Move to folder if folderId is provided
+        if (folderId !== null && folderId !== undefined) {
+          await documentService.moveDocumentToFolder(docId, folderId);
+        }
+
+        alert('File uploaded successfully!');
         onUploadSuccess();
         onClose();
       } else {
