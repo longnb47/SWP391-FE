@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import FileList from '../components/dashboard/FileList';
 import UploadModal from '../components/dashboard/UploadModal';
@@ -36,8 +36,17 @@ const formatBytes = (bytes: number, decimals = 2) => {
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Retrieve navigation state if returning from document detail view
+  const navigationState = location.state as {
+    activeTab?: string;
+    folderId?: number | null;
+    folderName?: string | null;
+  } | null;
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('My Files');
+  const [activeTab, setActiveTab] = useState(() => navigationState?.activeTab || 'My Files');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
@@ -49,8 +58,12 @@ export const DashboardPage: React.FC = () => {
   const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   // Folder navigation state
-  const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
-  const [currentFolderName, setCurrentFolderName] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<number | null>(() =>
+    navigationState?.folderId !== undefined ? navigationState.folderId : null
+  );
+  const [currentFolderName, setCurrentFolderName] = useState<string | null>(() =>
+    navigationState?.folderName !== undefined ? navigationState.folderName : null
+  );
 
   // Modal states
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -92,29 +105,17 @@ export const DashboardPage: React.FC = () => {
     setIsLoadingFiles(true);
     
     try {
-      if (activeTab === 'My Files') {
-        if (currentFolderId === null) {
-          // Fetch folders and root documents in parallel
-          const [foldersResponse, docsResponse] = await Promise.all([
-            folderService.getFolders(),
-            documentService.getMyDocuments(),
-          ]);
+      if (currentFolderId !== null) {
+        // Fetch documents in folder (applicable for both "My Files" and "Starred")
+        setApiFolders([]); // No folders inside folders
+        const docsResponse = await folderService.getFolderDocuments(currentFolderId);
+        
+        if (docsResponse.data && docsResponse.data.success) {
+          const folderDocs = docsResponse.data.data;
           
-          let rootDocs: DocumentUploadResponse[] = [];
-          if (docsResponse.data && docsResponse.data.success) {
-            // Filter root documents only
-            rootDocs = docsResponse.data.data.filter((doc) => doc.folderId === null);
-          }
-          
-          if (foldersResponse.data && foldersResponse.data.success) {
-            setApiFolders(foldersResponse.data.data);
-          } else {
-            setApiFolders([]);
-          }
-          
-          // Fetch tags for root documents
+          // Fetch tags for folder documents
           const docsWithTags = await Promise.all(
-            rootDocs.map(async (doc) => {
+            folderDocs.map(async (doc) => {
               try {
                 const tagResponse = await tagService.getDocumentTags(doc.documentId);
                 if (tagResponse.data && tagResponse.data.success) {
@@ -132,37 +133,47 @@ export const DashboardPage: React.FC = () => {
           setApiFiles(docsWithTags);
           setIsFallbackMode(false);
         } else {
-          // Fetch documents in folder
-          setApiFolders([]); // No folders inside folders
-          const docsResponse = await folderService.getFolderDocuments(currentFolderId);
-          
-          if (docsResponse.data && docsResponse.data.success) {
-            const folderDocs = docsResponse.data.data;
-            
-            // Fetch tags for folder documents
-            const docsWithTags = await Promise.all(
-              folderDocs.map(async (doc) => {
-                try {
-                  const tagResponse = await tagService.getDocumentTags(doc.documentId);
-                  if (tagResponse.data && tagResponse.data.success) {
-                    const tagNames = tagResponse.data.data.map((t) => t.name);
-                    const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
-                    return { ...doc, tags: tagNames, tagDetails };
-                  }
-                } catch (e) {
-                  console.error(`Failed to load tags for document ${doc.documentId}:`, e);
-                }
-                return { ...doc, tags: [], tagDetails: [] };
-              })
-            );
-            
-            setApiFiles(docsWithTags);
-            setIsFallbackMode(false);
-          } else {
-            console.warn(`Failed to fetch documents for folder ${currentFolderId}`);
-            setApiFiles([]);
-          }
+          console.warn(`Failed to fetch documents for folder ${currentFolderId}`);
+          setApiFiles([]);
         }
+      } else if (activeTab === 'My Files') {
+        // Fetch folders and root documents in parallel
+        const [foldersResponse, docsResponse] = await Promise.all([
+          folderService.getFolders(),
+          documentService.getMyDocuments(),
+        ]);
+        
+        let rootDocs: DocumentUploadResponse[] = [];
+        if (docsResponse.data && docsResponse.data.success) {
+          // Filter root documents only
+          rootDocs = docsResponse.data.data.filter((doc) => doc.folderId === null);
+        }
+        
+        if (foldersResponse.data && foldersResponse.data.success) {
+          setApiFolders(foldersResponse.data.data);
+        } else {
+          setApiFolders([]);
+        }
+        
+        // Fetch tags for root documents
+        const docsWithTags = await Promise.all(
+          rootDocs.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        
+        setApiFiles(docsWithTags);
+        setIsFallbackMode(false);
       } else if (activeTab === 'Starred') {
         const [foldersResponse, docsResponse] = await Promise.all([
           folderService.getStarredFolders(),
@@ -267,11 +278,8 @@ export const DashboardPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFolderId, activeTab]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentFolderId(null);
-    setCurrentFolderName(null);
-  }, [activeTab]);
+  // Removed useEffect resetting folder on tab change to allow state preservation.
+  // Resets are handled directly in handleTabChange.
 
   // Map backend files to frontend FileItems
   const mapApiFileToFileItem = (doc: DocumentWithTags): FileItem => {
@@ -288,7 +296,7 @@ export const DashboardPage: React.FC = () => {
       fileType,
       icon: fileType === 'image' ? 'image' : 'description',
       tags: doc.tags || [],
-      owner: 'Me',
+      owner: String(doc.userId) === String(localStorage.getItem('userId')) ? 'Me' : `User ${doc.userId}`,
       lastModified: new Date(doc.uploadedAt).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -315,14 +323,14 @@ export const DashboardPage: React.FC = () => {
           return false;
         }
 
+        if (currentFolderId !== null) {
+          // Inside a folder, show files belonging to this folder (applicable to both My Files and Starred)
+          return item.type === 'file' && String(item.folderId) === String(currentFolderId);
+        }
+
         if (activeTab === 'My Files') {
-          if (currentFolderId === null) {
-            // At root, show folders and root files
-            return item.type.startsWith('folder') || !item.folderId;
-          } else {
-            // Inside a folder, show files belonging to this folder (matches folderId string or number)
-            return item.type === 'file' && String(item.folderId) === String(currentFolderId);
-          }
+          // At root, show folders and root files
+          return item.type.startsWith('folder') || !item.folderId;
         } else if (activeTab === 'Starred') {
           return !!item.isStarred;
         } else if (activeTab === 'Community') {
@@ -377,6 +385,12 @@ export const DashboardPage: React.FC = () => {
   );
 
   // Trigger S3 File Upload Modal
+  const handleTabChange = (tabName: string) => {
+    setCurrentFolderId(null);
+    setCurrentFolderName(null);
+    setActiveTab(tabName);
+  };
+
   const handleUploadFile = () => {
     if (!isLoggedIn) {
       alert('Please log in to upload files.');
@@ -405,7 +419,13 @@ export const DashboardPage: React.FC = () => {
       setCurrentFolderId(Number(item.id));
       setCurrentFolderName(item.name);
     } else {
-      navigate(`/document/${item.id}`);
+      navigate(`/document/${item.id}`, {
+        state: {
+          fromTab: activeTab,
+          fromFolderId: currentFolderId,
+          fromFolderName: currentFolderName,
+        },
+      });
     }
   };
 
@@ -652,7 +672,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <DashboardLayout
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       onSearch={setSearchQuery}
       onUploadClick={handleUploadFile}
       onNewFolderClick={handleNewFolder}

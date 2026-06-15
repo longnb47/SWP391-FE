@@ -76,6 +76,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               localStorage.removeItem('token');
               localStorage.removeItem('refreshToken');
               localStorage.removeItem('userEmail');
+              localStorage.removeItem('userId');
               window.location.href = '/login';
             }
           }}

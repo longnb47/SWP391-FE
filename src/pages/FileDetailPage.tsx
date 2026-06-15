@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
@@ -44,6 +44,17 @@ const calculateStorageUsage = (files: { fileSize: number }[], isLoggedIn: boolea
 export const FileDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const state = location.state as {
+    fromTab?: string;
+    fromFolderId?: number | null;
+    fromFolderName?: string | null;
+  } | null;
+
+  const fromTab = state?.fromTab || 'My Files';
+  const fromFolderId = state?.fromFolderId !== undefined ? state.fromFolderId : null;
+  const fromFolderName = state?.fromFolderName !== undefined ? state.fromFolderName : null;
 
   const [documentDetails, setDocumentDetails] = useState<{
     id: number | null;
@@ -84,15 +95,41 @@ export const FileDetailPage: React.FC = () => {
       const numericId = Number(id);
       if (!isNaN(numericId)) {
         // Fetch details from backend API
-        const response = await documentService.getDocumentDetail(numericId);
+        let response;
+        let isPublicDoc = false;
         
-        if (response.data && response.data.success) {
+        try {
+          response = await documentService.getDocumentDetail(numericId);
+          if (!response.data || !response.data.success) {
+            // Fallback for documents owned by other users (e.g. from community page)
+            const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+            if (publicResponse.data && publicResponse.data.success) {
+              response = publicResponse;
+              isPublicDoc = true;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch private document detail, trying public:', e);
+          try {
+            const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+            if (publicResponse.data && publicResponse.data.success) {
+              response = publicResponse;
+              isPublicDoc = true;
+            }
+          } catch (pubErr) {
+            console.error('Failed to load as public document:', pubErr);
+          }
+        }
+        
+        if (response && response.data && response.data.success) {
           const doc = response.data.data;
           
           let previewUrl: string | null = null;
           let contentType: string | null = doc.contentType;
           try {
-            const previewResponse = await documentService.getDocumentPreviewUrl(numericId);
+            const previewResponse = isPublicDoc
+              ? await documentService.getPublicDocumentPreviewUrl(numericId)
+              : await documentService.getDocumentPreviewUrl(numericId);
             if (previewResponse.data && previewResponse.data.success) {
               previewUrl = previewResponse.data.data.url;
               if (previewResponse.data.data.contentType) {
@@ -105,7 +142,9 @@ export const FileDetailPage: React.FC = () => {
 
           let downloadUrl: string | null = null;
           try {
-            const downloadResponse = await documentService.getDocumentDownloadUrl(numericId);
+            const downloadResponse = isPublicDoc
+              ? await documentService.getPublicDocumentDownloadUrl(numericId)
+              : await documentService.getDocumentDownloadUrl(numericId);
             if (downloadResponse.data && downloadResponse.data.success) {
               downloadUrl = downloadResponse.data.data.url;
             }
@@ -180,13 +219,13 @@ export const FileDetailPage: React.FC = () => {
 
   const handleTabChange = (tabName: string) => {
     if (tabName !== 'AI Assistant' && tabName !== 'Settings') {
-      navigate('/dashboard');
+      navigate('/dashboard', { state: { activeTab: tabName } });
     }
   };
 
   if (isLoading || !documentDetails) {
     return (
-      <DashboardLayout activeTab="My Files" onTabChange={handleTabChange} fluid={true} storage={storage}>
+      <DashboardLayout activeTab={fromTab} onTabChange={handleTabChange} fluid={true} storage={storage}>
         <div className="flex-1 flex flex-col items-center justify-center py-40 gap-3 w-full bg-surface">
           <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -200,7 +239,7 @@ export const FileDetailPage: React.FC = () => {
 
   return (
     <DashboardLayout
-      activeTab="My Files"
+      activeTab={fromTab}
       onTabChange={handleTabChange}
       fluid={true}
       storage={storage}
@@ -222,7 +261,13 @@ export const FileDetailPage: React.FC = () => {
             }
           }}
           onShareClick={() => alert(`Sharing "${documentDetails.name}" link...`)}
-          onBack={() => navigate('/dashboard')}
+          onBack={() => navigate('/dashboard', {
+            state: {
+              activeTab: fromTab,
+              folderId: fromFolderId,
+              folderName: fromFolderName,
+            },
+          })}
         />
 
         {/* Right Side: AI Assistant Chat (40% width) */}

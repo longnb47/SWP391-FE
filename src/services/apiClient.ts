@@ -88,6 +88,7 @@ export const apiClient = {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userEmail');
+        localStorage.removeItem('userId');
         
         const path = window.location.pathname;
         if (path !== '/login' && path !== '/register' && path !== '/verify-otp' && path !== '/dashboard') {

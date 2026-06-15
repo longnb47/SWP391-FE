@@ -38,6 +38,7 @@ export const LoginPage: React.FC = () => {
       localStorage.setItem('token', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('userEmail', data.email);
+      localStorage.setItem('userId', String(data.userId));
       navigate('/dashboard');
     } else {
       setErrorMessage(response.error || 'Invalid email or password.');

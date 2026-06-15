@@ -16,6 +16,10 @@ export const OAuth2RedirectHandler: React.FC = () => {
       if (email) {
         localStorage.setItem('userEmail', email);
       }
+      const userId = params.get('userId');
+      if (userId) {
+        localStorage.setItem('userId', userId);
+      }
       
       // Clean query parameters from URL and redirect to dashboard
       navigate('/dashboard', { replace: true });
