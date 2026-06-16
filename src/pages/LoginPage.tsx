@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { saveKnownUser } from '../lib/userHelpers';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ export const LoginPage: React.FC = () => {
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('userEmail', data.email);
       localStorage.setItem('userId', String(data.userId));
+      const fullName = data.fullName || data.email.split('@')[0];
+      localStorage.setItem('userFullName', fullName);
+      saveKnownUser(data.userId, fullName, data.email);
       navigate('/dashboard');
     } else {
       setErrorMessage(response.error || 'Invalid email or password.');
@@ -55,6 +59,9 @@ export const LoginPage: React.FC = () => {
     localStorage.setItem('token', 'demo-bypass-token-12345');
     localStorage.setItem('refreshToken', 'demo-bypass-refresh-token-12345');
     localStorage.setItem('userEmail', 'demo@example.com');
+    localStorage.setItem('userId', '1');
+    localStorage.setItem('userFullName', 'Demo User');
+    saveKnownUser(1, 'Demo User', 'demo@example.com');
     navigate('/dashboard');
   };
 
@@ -111,9 +118,9 @@ export const LoginPage: React.FC = () => {
               <label className="font-label-md text-on-surface-variant text-xs font-semibold block">
                 Password
               </label>
-              <a href="#" className="font-label-md text-primary text-xs hover:underline" onClick={() => alert('Forgot password is not implemented.')}>
+              <Link to="/forgot-password" className="font-label-md text-primary text-xs hover:underline">
                 Forgot password?
-              </a>
+              </Link>
             </div>
             <div className="relative focus-within:shadow-sm transition-shadow rounded-xl">
               <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary select-none text-[20px]">

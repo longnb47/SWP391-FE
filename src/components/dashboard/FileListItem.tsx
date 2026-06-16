@@ -112,7 +112,10 @@ export const FileListItem: React.FC<FileListItemProps> = ({
 
       {/* Metadata (Hidden on Mobile) */}
       <div className="hidden sm:flex items-center gap-16 text-right select-none">
-        <span className="font-body-md text-body-md text-secondary w-32 truncate">
+        <span 
+          className="font-body-md text-body-md text-secondary w-32 truncate"
+          title={owner}
+        >
           {owner}
         </span>
         <span className="font-body-md text-body-md text-secondary w-32 truncate">

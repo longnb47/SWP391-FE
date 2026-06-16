@@ -11,6 +11,8 @@ export interface DocumentPreviewProps {
   onDownloadClick?: () => void;
   onShareClick?: () => void;
   onBack?: () => void;
+  isChatOpen?: boolean;
+  onToggleChat?: () => void;
 }
 
 export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
@@ -22,6 +24,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onDownloadClick,
   onShareClick,
   onBack,
+  isChatOpen = true,
+  onToggleChat,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(100);
 
@@ -40,7 +44,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const isPdf = contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
   const isImage = contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName);
   const isDocx = contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName.toLowerCase().endsWith('.docx');
-  const isUnsupported = !isPdf && !isImage && !isDocx;
+  const isVideo = contentType?.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp|ogg)$/i.test(fileName.toLowerCase());
+  const isUnsupported = !isPdf && !isImage && !isDocx && !isVideo;
 
   useEffect(() => {
     if (isDocx && previewUrl && docxContainerRef.current) {
@@ -80,13 +85,14 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     if (isPdf) return { icon: 'picture_as_pdf', bg: 'bg-error-container text-error' };
     if (isImage) return { icon: 'image', bg: 'bg-primary-container text-primary' };
     if (isDocx) return { icon: 'description', bg: 'bg-info-container text-info bg-[#e8f0fe] text-[#1a73e8]' };
+    if (isVideo) return { icon: 'video_file', bg: 'bg-warning-container text-warning text-[#e0a800] bg-[#fef7e0]' };
     return { icon: 'draft', bg: 'bg-surface-container-high text-secondary' };
   };
 
   const iconInfo = getFileIconInfo();
 
   // Determine if we should show zoom controls
-  const showZoomControls = !isUnsupported && !(isPdf && previewUrl);
+  const showZoomControls = !isUnsupported && !isVideo && !(isPdf && previewUrl);
 
   const renderContent = () => {
     // 1. PDF
@@ -274,6 +280,53 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       );
     }
 
+    // 3.5. Video
+    if (isVideo) {
+      if (previewUrl) {
+        return (
+          <div className="flex-1 overflow-auto p-container-padding bg-surface-container-low flex items-center justify-center custom-scrollbar">
+            <div className="bg-surface max-w-4xl w-full shadow border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
+              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                <video
+                  src={previewUrl}
+                  controls
+                  className="w-full h-full object-contain"
+                  preload="metadata"
+                >
+                  Trình duyệt của bạn không hỗ trợ phát video HTML5 trực tiếp. Vui lòng tải về máy.
+                </video>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="flex-1 overflow-auto p-container-padding bg-surface-container-low flex items-center justify-center custom-scrollbar">
+          <div className="bg-surface max-w-md w-full shadow border border-outline-variant rounded-xl p-8 flex flex-col items-center text-center gap-6 mx-4">
+            <div className="w-16 h-16 rounded-full bg-warning-container flex items-center justify-center text-warning text-[#e0a800] bg-[#fef7e0]">
+              <span className="material-symbols-outlined text-[36px]">video_file</span>
+            </div>
+            <div>
+              <h3 className="font-title-lg text-title-lg text-on-surface mb-2 font-bold">Xem trước không khả dụng</h3>
+              <p className="font-body-md text-secondary leading-relaxed">
+                Hệ thống chưa tạo được liên kết xem trước trực tiếp cho tệp video <strong>{fileName}</strong> ({fileSize}). Vui lòng tải xuống máy để mở.
+              </p>
+            </div>
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={onDownloadClick}
+                className="flex-1 py-2.5 px-4 bg-primary text-on-primary rounded-lg font-title-sm text-title-sm hover:shadow transition-shadow cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">download</span>
+                Tải xuống video
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // 4. Unsupported
     return (
       <div className="flex-1 overflow-auto p-container-padding bg-surface-container-low flex items-center justify-center custom-scrollbar">
@@ -302,7 +355,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   };
 
   return (
-    <section className="flex-[6] bg-surface flex flex-col border-r border-outline-variant relative z-10 h-full overflow-hidden">
+    <section className={`${isChatOpen ? 'flex-[6]' : 'flex-1'} bg-surface flex flex-col border-r border-outline-variant relative z-10 h-full overflow-hidden transition-all duration-300`}>
       {/* Document Toolbar */}
       <div className="h-14 border-b border-surface-container-high flex items-center justify-between px-container-padding bg-surface-bright shrink-0 select-none">
         <div className="flex items-center gap-stack-md min-w-0">
@@ -367,6 +420,19 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           >
             <span className="material-symbols-outlined text-[20px]">share</span>
           </button>
+          {onToggleChat && (
+            <button
+              onClick={onToggleChat}
+              className={`p-1.5 rounded transition-colors cursor-pointer flex items-center justify-center ${
+                isChatOpen
+                  ? 'text-primary bg-primary/10 hover:bg-primary/15'
+                  : 'text-secondary hover:bg-surface-container'
+              }`}
+              title={isChatOpen ? 'Close AI Chat' : 'Open AI Chat'}
+            >
+              <span className="material-symbols-outlined text-[20px] select-none">smart_toy</span>
+            </button>
+          )}
         </div>
       </div>
 

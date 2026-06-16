@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { chatService } from '../../services/chatService';
 
 export interface ChatMessage {
   id: string;
@@ -10,11 +12,13 @@ export interface ChatMessage {
 }
 
 export interface DocumentChatProps {
+  documentId: number | null;
   fileName: string;
   status?: string;
+  onClose?: () => void;
 }
 
-export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) => {
+export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName, status, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'm1',
@@ -35,7 +39,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) 
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAiLoading]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputVal.trim() || isAiLoading) return;
 
@@ -52,38 +56,94 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) 
     setInputVal('');
     setIsAiLoading(true);
 
-    // Dynamic Mock AI responses based on keywords
-    setTimeout(() => {
-      let replyText = `Based on the document "${fileName}", I found relevant insights regarding your question. However, this is a mock setup. Please integrate the real AI backend to get dynamic responses!`;
-      let citation: string | undefined = undefined;
+    if (documentId !== null) {
+      try {
+        const response = await chatService.askQuestion(documentId, query);
+        if (response.data && response.data.success) {
+          const data = response.data.data;
+          
+          let citationStr = '';
+          if (data.sources && data.sources.length > 0) {
+            const pages = data.sources
+              .map((s) => s.pageNumber)
+              .filter((p): p is number => p !== null && p !== undefined);
+            
+            if (pages.length > 0) {
+              const uniquePages = Array.from(new Set(pages)).sort((a, b) => a - b);
+              citationStr = `Page ${uniquePages.join(', ')}`;
+            } else {
+              const chunkIds = data.sources.map((s) => s.chunkId);
+              citationStr = `Chunks ${chunkIds.join(', ')}`;
+            }
+          }
 
-      const lowerQuery = query.toLowerCase();
-      if (lowerQuery.includes('objective') || lowerQuery.includes('key objectives') || lowerQuery.includes('section 2')) {
-        replyText = `Based on Section 2 of the document, the Key Objectives for Q3 are:
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: data.answer,
+            citation: citationStr || undefined,
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        } else {
+          const errorMsg = response.error || 'Failed to retrieve AI answer.';
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: `Error: ${errorMsg}`,
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        }
+      } catch (err) {
+        console.error('Error asking question:', err);
+        const aiResponse: ChatMessage = {
+          id: `msg-ai-${Date.now()}`,
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'smart_toy',
+          text: 'An unexpected error occurred while calling the AI service.',
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      } finally {
+        setIsAiLoading(false);
+      }
+    } else {
+      // Dynamic Mock AI responses based on keywords
+      setTimeout(() => {
+        let replyText = `Based on the document "${fileName}", I found relevant insights regarding your question. However, this is a mock setup. Please integrate the real AI backend to get dynamic responses!`;
+        let citation: string | undefined = undefined;
+
+        const lowerQuery = query.toLowerCase();
+        if (lowerQuery.includes('objective') || lowerQuery.includes('key objectives') || lowerQuery.includes('section 2')) {
+          replyText = `Based on Section 2 of the document, the Key Objectives for Q3 are:
 • Accelerating deployment of machine learning modules within the core platform.
 • Expanding the sales task force in the EMEA region by 15 personnel.
 • Reducing customer churn by 2% through proactive engagement initiatives.`;
-        citation = 'Page 1, Section 2';
-      } else if (lowerQuery.includes('financial') || lowerQuery.includes('projection') || lowerQuery.includes('revenue') || lowerQuery.includes('budget')) {
-        replyText = `According to Section 3 (Financial Projections), revenue targets for Q3 are set aggressively at $42M, representing strong quarter-over-quarter growth. Margin expansion remains a priority, driven by operational efficiencies. Also, the strategic pivot to AI will reallocate 20% of the R&D budget by Q4.`;
-        citation = 'Page 1, Section 3';
-      } else if (lowerQuery.includes('executive') || lowerQuery.includes('summary') || lowerQuery.includes('q3 strategic')) {
-        replyText = `In the Executive Summary (Section 1), the Q3 Strategic Outlook indicates a year-over-year SaaS growth of 14% despite macroeconomic headwinds. It highlights a strategic pivot towards AI-integrated workflows to capture enterprise market demands.`;
-        citation = 'Page 1, Section 1';
-      }
+          citation = 'Page 1, Section 2';
+        } else if (lowerQuery.includes('financial') || lowerQuery.includes('projection') || lowerQuery.includes('revenue') || lowerQuery.includes('budget')) {
+          replyText = `According to Section 3 (Financial Projections), revenue targets for Q3 are set aggressively at $42M, representing strong quarter-over-quarter growth. Margin expansion remains a priority, driven by operational efficiencies. Also, the strategic pivot to AI will reallocate 20% of the R&D budget by Q4.`;
+          citation = 'Page 1, Section 3';
+        } else if (lowerQuery.includes('executive') || lowerQuery.includes('summary') || lowerQuery.includes('q3 strategic')) {
+          replyText = `In the Executive Summary (Section 1), the Q3 Strategic Outlook indicates a year-over-year SaaS growth of 14% despite macroeconomic headwinds. It highlights a strategic pivot towards AI-integrated workflows to capture enterprise market demands.`;
+          citation = 'Page 1, Section 1';
+        }
 
-      const aiResponse: ChatMessage = {
-        id: `msg-ai-${Date.now()}`,
-        sender: 'ai',
-        senderName: 'Aether AI',
-        avatar: 'smart_toy',
-        text: replyText,
-        citation,
-      };
+        const aiResponse: ChatMessage = {
+          id: `msg-ai-${Date.now()}`,
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'smart_toy',
+          text: replyText,
+          citation,
+        };
 
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsAiLoading(false);
-    }, 1200);
+        setMessages((prev) => [...prev, aiResponse]);
+        setIsAiLoading(false);
+      }, 1200);
+    }
   };
 
   const handleCitationClick = (citationText: string) => {
@@ -98,12 +158,24 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) 
           <span className="material-symbols-outlined fill select-none">smart_toy</span>
           <h2 className="font-title-lg text-title-lg font-semibold">AI Document Assistant</h2>
         </div>
-        <button 
-          onClick={() => alert('Chat options clicked')}
-          className="ml-auto p-1.5 text-secondary hover:bg-surface-container rounded transition-colors cursor-pointer select-none"
-        >
-          <span className="material-symbols-outlined text-[20px]">more_vert</span>
-        </button>
+        <div className="ml-auto flex items-center gap-1">
+          <button 
+            onClick={() => alert('Chat options clicked')}
+            className="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors cursor-pointer select-none flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-[20px]">more_vert</span>
+          </button>
+          {onClose && (
+            <button 
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-secondary hover:text-error hover:bg-error/10 rounded-full transition-colors cursor-pointer select-none flex items-center justify-center"
+              title="Close Chat"
+            >
+              <span className="material-symbols-outlined text-[20px] font-bold">close</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Chat History Messages */}
@@ -149,13 +221,17 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) 
                 </span>
                 
                 <div 
-                  className={`p-4 shadow-sm text-on-surface font-body-md text-body-md whitespace-pre-line ${
+                  className={`p-4 shadow-sm text-on-surface font-body-md text-body-md markdown-content ${
                     isAi
-                      ? 'bg-white border rounded-2xl rounded-tl-sm border-outline-variant/60 bg-white/95'
-                      : 'bg-surface-container-high rounded-2xl rounded-tr-sm'
+                      ? 'bg-white border rounded-2xl rounded-tl-sm border-outline-variant/60 bg-white/95 text-left'
+                      : 'bg-surface-container-high rounded-2xl rounded-tr-sm whitespace-pre-line text-left'
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  {isAi ? (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  ) : (
+                    <p>{msg.text}</p>
+                  )}
                   
                   {/* Citation Badge */}
                   {isAi && msg.citation && (
@@ -199,16 +275,9 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ fileName, status }) 
       {/* Input Area (Sticky Bottom) */}
       <div className="absolute bottom-0 left-0 right-0 p-container-padding bg-gradient-to-t from-surface via-surface to-transparent pt-8 select-none z-10 shrink-0">
         <form onSubmit={handleSendMessage} className="relative flex items-center bg-surface-container-lowest rounded-xl border border-outline-variant focus-within:border-primary-container focus-within:ring-4 focus-within:ring-primary-fixed transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-          <button 
-            type="button"
-            onClick={() => alert('Attachments clicked')}
-            className="p-3 text-secondary hover:text-primary transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined select-none">attach_file</span>
-          </button>
           <input
             type="text"
-            className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3 px-1 outline-none"
+            className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3 px-4 outline-none"
             placeholder="Ask a question about this document..."
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}

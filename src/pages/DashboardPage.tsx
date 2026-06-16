@@ -12,6 +12,7 @@ import CreateFolderModal from '../components/dashboard/CreateFolderModal';
 import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import { getFileIconDetails } from '../lib/fileHelpers';
+import { saveKnownUser, resolveOwnerEmail } from '../lib/userHelpers';
 import {
   mockFileItems,
 } from '../features/dashboard/dashboard.mock';
@@ -90,6 +91,13 @@ export const DashboardPage: React.FC = () => {
     if (isLoggedIn) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadAllFolders();
+      
+      const currentUserId = localStorage.getItem('userId');
+      const currentFullName = localStorage.getItem('userFullName');
+      const currentEmail = localStorage.getItem('userEmail');
+      if (currentUserId && (currentFullName || currentEmail)) {
+        saveKnownUser(currentUserId, currentFullName, currentEmail);
+      }
     }
   }, [isLoggedIn]);
 
@@ -296,7 +304,7 @@ export const DashboardPage: React.FC = () => {
       fileType,
       icon: fileType === 'image' ? 'image' : 'description',
       tags: doc.tags || [],
-      owner: String(doc.userId) === String(localStorage.getItem('userId')) ? 'Me' : `User ${doc.userId}`,
+      owner: resolveOwnerEmail(doc.userId),
       lastModified: new Date(doc.uploadedAt).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -343,7 +351,7 @@ export const DashboardPage: React.FC = () => {
           id: String(folder.folderId),
           name: folder.name,
           type: 'folder' as const,
-          owner: 'Me',
+          owner: resolveOwnerEmail(folder.userId),
           lastModified: new Date(folder.createdAt).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',

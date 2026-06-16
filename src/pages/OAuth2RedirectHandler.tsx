@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { saveKnownUser } from '../lib/userHelpers';
 
 export const OAuth2RedirectHandler: React.FC = () => {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export const OAuth2RedirectHandler: React.FC = () => {
     const token = params.get('token') || params.get('accessToken');
     const refreshToken = params.get('refreshToken');
     const email = params.get('email');
+    const fullName = params.get('fullName');
 
     if (token && refreshToken) {
       localStorage.setItem('token', token);
@@ -19,6 +21,12 @@ export const OAuth2RedirectHandler: React.FC = () => {
       const userId = params.get('userId');
       if (userId) {
         localStorage.setItem('userId', userId);
+      }
+      if (fullName) {
+        localStorage.setItem('userFullName', fullName);
+      }
+      if (userId && (fullName || email)) {
+        saveKnownUser(userId, fullName || email!.split('@')[0], email);
       }
       
       // Clean query parameters from URL and redirect to dashboard

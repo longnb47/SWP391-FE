@@ -9,6 +9,7 @@ export interface LoginResponse {
   userId: number;
   email: string;
   role: string;
+  fullName?: string;
 }
 
 export interface RegisterResponse {
@@ -44,6 +45,18 @@ export const authService = {
 
   async logout(refreshToken: string): Promise<ApiResponse<BackendResponse<null>>> {
     return apiClient.post<BackendResponse<null>>('/auth/logout', { refreshToken });
+  },
+
+  async forgotPassword(email: string): Promise<ApiResponse<BackendResponse<{ message: string; email: string }>>> {
+    return apiClient.post<BackendResponse<{ message: string; email: string }>>('/auth/forgot-password', { email });
+  },
+
+  async verifyForgotPasswordOtp(email: string, otp: string): Promise<ApiResponse<BackendResponse<{ message: string }>>> {
+    return apiClient.post<BackendResponse<{ message: string }>>('/auth/verify-forgot-password-otp', { email, otp });
+  },
+
+  async resetPassword(email: string, newPassword: string): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>('/auth/reset-password', { email, newPassword });
   },
 
   getGoogleLoginUrl(): string {

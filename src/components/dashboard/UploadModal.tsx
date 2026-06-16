@@ -73,17 +73,29 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   if (!isOpen) return null;
 
-  // File size validation (Max 20MB)
+  // File size validation (Max 20MB for documents, 50MB for videos)
   const validateAndSetFile = (selectedFile: File) => {
-    const MAX_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB
     if (selectedFile.size === 0) {
       alert('Upload failed: Empty files are not allowed.');
       return;
     }
-    if (selectedFile.size > MAX_SIZE_LIMIT) {
-      alert('Upload failed: File size exceeds the maximum limit of 20MB.');
-      return;
+
+    const isVideo = selectedFile.type.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp)$/i.test(selectedFile.name);
+    
+    if (isVideo) {
+      const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
+      if (selectedFile.size > VIDEO_SIZE_LIMIT) {
+        alert('Upload failed: Video size exceeds the maximum limit of 50MB.');
+        return;
+      }
+    } else {
+      const MAX_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB
+      if (selectedFile.size > MAX_SIZE_LIMIT) {
+        alert('Upload failed: File size exceeds the maximum limit of 20MB.');
+        return;
+      }
     }
+
     setFile(selectedFile);
   };
 

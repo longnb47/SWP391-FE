@@ -68,6 +68,7 @@ export const FileDetailPage: React.FC = () => {
   } | null>(null);
   const [storage, setStorage] = useState<StorageUsage | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(true);
 
   const isLoggedIn = !!localStorage.getItem('token');
 
@@ -245,7 +246,7 @@ export const FileDetailPage: React.FC = () => {
       storage={storage}
     >
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden h-full w-full bg-surface">
-        {/* Left Side: Document Preview (60% width) */}
+        {/* Left Side: Document Preview (takes up flex-[6] or full-width) */}
         <DocumentPreview
           fileName={documentDetails.name}
           fileSize={documentDetails.size}
@@ -268,10 +269,19 @@ export const FileDetailPage: React.FC = () => {
               folderName: fromFolderName,
             },
           })}
+          isChatOpen={isChatOpen}
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
         />
 
-        {/* Right Side: AI Assistant Chat (40% width) */}
-        <DocumentChat fileName={documentDetails.name} status={documentDetails.status} />
+        {/* Right Side: AI Assistant Chat (40% width or closed) */}
+        {isChatOpen && (
+          <DocumentChat
+            documentId={documentDetails.id}
+            fileName={documentDetails.name}
+            status={documentDetails.status}
+            onClose={() => setIsChatOpen(false)}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
