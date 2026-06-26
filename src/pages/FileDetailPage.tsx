@@ -98,27 +98,50 @@ export const FileDetailPage: React.FC = () => {
         // Fetch details from backend API
         let response;
         let isPublicDoc = false;
+        let isSharedDoc = false;
         
         try {
           response = await documentService.getDocumentDetail(numericId);
           if (!response.data || !response.data.success) {
-            // Fallback for documents owned by other users (e.g. from community page)
-            const publicResponse = await documentService.getPublicDocumentDetail(numericId);
-            if (publicResponse.data && publicResponse.data.success) {
-              response = publicResponse;
-              isPublicDoc = true;
+            // Check if it's shared with me
+            const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
+            if (sharedResponse.data && sharedResponse.data.success) {
+              response = sharedResponse;
+              isSharedDoc = true;
+            } else {
+              // Fallback for documents owned by other users (e.g. from community page)
+              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+              if (publicResponse.data && publicResponse.data.success) {
+                response = publicResponse;
+                isPublicDoc = true;
+              }
             }
           }
         } catch (e) {
-          console.warn('Failed to fetch private document detail, trying public:', e);
+          console.warn('Failed to fetch private document detail, checking shared-with-me:', e);
           try {
-            const publicResponse = await documentService.getPublicDocumentDetail(numericId);
-            if (publicResponse.data && publicResponse.data.success) {
-              response = publicResponse;
-              isPublicDoc = true;
+            const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
+            if (sharedResponse.data && sharedResponse.data.success) {
+              response = sharedResponse;
+              isSharedDoc = true;
+            } else {
+              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+              if (publicResponse.data && publicResponse.data.success) {
+                response = publicResponse;
+                isPublicDoc = true;
+              }
             }
-          } catch (pubErr) {
-            console.error('Failed to load as public document:', pubErr);
+          } catch (sharedErr) {
+            console.warn('Failed to load as shared document, checking public:', sharedErr);
+            try {
+              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+              if (publicResponse.data && publicResponse.data.success) {
+                response = publicResponse;
+                isPublicDoc = true;
+              }
+            } catch (pubErr) {
+              console.error('Failed to load as public document:', pubErr);
+            }
           }
         }
         
@@ -128,7 +151,9 @@ export const FileDetailPage: React.FC = () => {
           let previewUrl: string | null = null;
           let contentType: string | null = doc.contentType;
           try {
-            const previewResponse = isPublicDoc
+            const previewResponse = isSharedDoc
+              ? await documentService.getSharedWithMePreviewUrl(numericId)
+              : isPublicDoc
               ? await documentService.getPublicDocumentPreviewUrl(numericId)
               : await documentService.getDocumentPreviewUrl(numericId);
             if (previewResponse.data && previewResponse.data.success) {
@@ -143,7 +168,9 @@ export const FileDetailPage: React.FC = () => {
 
           let downloadUrl: string | null = null;
           try {
-            const downloadResponse = isPublicDoc
+            const downloadResponse = isSharedDoc
+              ? await documentService.getSharedWithMeDownloadUrl(numericId)
+              : isPublicDoc
               ? await documentService.getPublicDocumentDownloadUrl(numericId)
               : await documentService.getDocumentDownloadUrl(numericId);
             if (downloadResponse.data && downloadResponse.data.success) {

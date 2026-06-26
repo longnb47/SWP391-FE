@@ -32,6 +32,26 @@ export interface DocumentUrlResponse {
   contentType: string;
 }
 
+export interface DocumentShareLinkResponse {
+  shareLinkId: number;
+  documentId: number;
+  token: string;
+  accessPath: string;
+  enabled: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface DocumentShareResponse {
+  documentShareId: number;
+  documentId: number;
+  ownerId: number;
+  sharedWithUserId: number;
+  sharedWithEmail: string;
+  sharedWithName: string;
+  createdAt: string;
+}
+
 export const documentService = {
   async getMyDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/my');
@@ -124,6 +144,52 @@ export const documentService = {
 
   async getPublicDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
     return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/public/${documentId}/download-url`);
+  },
+
+  // Document public link share APIs
+  async createShareLink(documentId: number): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareLinkResponse>>(`/documents/${documentId}/share-link`);
+  },
+
+  async disableShareLink(documentId: number): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
+    return apiClient.delete<BackendResponse<DocumentShareLinkResponse>>(`/documents/${documentId}/share-link`);
+  },
+
+  async getSharedDocumentByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/share-link/${token}`);
+  },
+
+  async getSharedDocumentPreviewUrlByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/share-link/${token}/preview-url`);
+  },
+
+  async getSharedDocumentDownloadUrlByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/share-link/${token}/download-url`);
+  },
+
+  // Direct user sharing APIs
+  async shareDocumentWithUser(documentId: number, email: string): Promise<ApiResponse<BackendResponse<DocumentShareResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareResponse>>(`/documents/${documentId}/shares/users`, { email });
+  },
+
+  async removeUserShare(documentId: number, userId: number): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(`/documents/${documentId}/shares/users/${userId}`);
+  },
+
+  async getSharedWithMeDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/shared-with-me');
+  },
+
+  async getSharedWithMeDocumentDetail(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/shared-with-me/${documentId}`);
+  },
+
+  async getSharedWithMePreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/shared-with-me/${documentId}/preview-url`);
+  },
+
+  async getSharedWithMeDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/shared-with-me/${documentId}/download-url`);
   }
 };
 export default documentService;

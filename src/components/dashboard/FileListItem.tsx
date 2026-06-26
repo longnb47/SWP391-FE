@@ -208,6 +208,12 @@ export const FileListItem: React.FC<FileListItemProps> = ({
                   {type === 'file' && (
                     <>
                       <button
+                        onClick={(e) => handleAction('share', e)}
+                        className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">share</span> Share...
+                      </button>
+                      <button
                         onClick={(e) => handleAction('toggle_star', e)}
                         className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
                       >

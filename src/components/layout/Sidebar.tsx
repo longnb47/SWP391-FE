@@ -28,6 +28,7 @@ const navItems = [
   { name: 'Smart Search', icon: 'travel_explore' },
   { name: 'Community', icon: 'public' },
   { name: 'Shared', icon: 'group' },
+  { name: 'Friends', icon: 'person_add' },
   { name: 'Starred', icon: 'star' },
   { name: 'Trash', icon: 'delete' },
 ];

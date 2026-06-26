@@ -11,6 +11,8 @@ import type { DocumentFolderResponse } from '../services/folderService';
 import CreateFolderModal from '../components/dashboard/CreateFolderModal';
 import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
+import FriendsView from '../components/dashboard/FriendsView';
+import ShareModal from '../components/dashboard/ShareModal';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import { saveKnownUser, resolveOwnerEmail } from '../lib/userHelpers';
 import {
@@ -72,6 +74,10 @@ export const DashboardPage: React.FC = () => {
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null);
   const [isMoveToOpen, setIsMoveToOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<FileItem | null>(null);
+
+  // Share modal state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ id: number; name: string; isPublic: boolean } | null>(null);
 
   const isLoggedIn = !!localStorage.getItem('token');
 
@@ -268,6 +274,37 @@ export const DashboardPage: React.FC = () => {
         );
         setApiFiles(docsWithTags);
         setIsFallbackMode(false);
+      } else if (activeTab === 'Shared') {
+        setApiFolders([]);
+        const docsResponse = await documentService.getSharedWithMeDocuments();
+
+        let sharedDocs: DocumentUploadResponse[] = [];
+        if (docsResponse.data && docsResponse.data.success) {
+          sharedDocs = docsResponse.data.data;
+        }
+
+        const docsWithTags = await Promise.all(
+          sharedDocs.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        setApiFiles(docsWithTags);
+        setIsFallbackMode(false);
+      } else if (activeTab === 'Friends') {
+        setApiFiles([]);
+        setApiFolders([]);
+        setIsLoadingFiles(false);
+        return;
       } else {
         setApiFiles([]);
         setApiFolders([]);
@@ -343,6 +380,10 @@ export const DashboardPage: React.FC = () => {
           return !!item.isStarred;
         } else if (activeTab === 'Community') {
           return !!item.isPublic && item.type === 'file';
+        } else if (activeTab === 'Shared') {
+          return item.type === 'file' && item.owner !== 'Me';
+        } else if (activeTab === 'Friends') {
+          return false;
         }
         return true;
       })
@@ -586,6 +627,18 @@ export const DashboardPage: React.FC = () => {
         alert(`Mock toggled visibility for: ${item.name}`);
         fetchFiles();
       }
+    } else if (action === 'share') {
+      const numericId = Number(item.id);
+      if (!isNaN(numericId)) {
+        setShareTarget({
+          id: numericId,
+          name: item.name,
+          isPublic: !!item.isPublic,
+        });
+        setIsShareModalOpen(true);
+      } else {
+        alert('Sharing mock items is not supported.');
+      }
     } else if (action === 'open') {
       handleItemClick(item);
     }
@@ -686,8 +739,11 @@ export const DashboardPage: React.FC = () => {
       onNewFolderClick={handleNewFolder}
       storage={dynamicStorage}
     >
-      {/* Main File List / Grid Section */}
-      <section className="space-y-4">
+      {activeTab === 'Friends' ? (
+        <FriendsView />
+      ) : (
+        /* Main File List / Grid Section */
+        <section className="space-y-4">
         {/* Section Header with View Toggles */}
         <div className="flex items-center justify-between">
           <div className="font-headline-lg text-headline-lg font-bold text-on-surface select-none">
@@ -837,6 +893,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </section>
+      )}
       
       <UploadModal
         isOpen={isUploadModalOpen}
@@ -872,6 +929,23 @@ export const DashboardPage: React.FC = () => {
         currentFolderId={moveTarget?.folderId}
         onMove={handleMoveToSubmit}
       />
+
+      {shareTarget && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareTarget(null);
+            fetchFiles();
+          }}
+          documentId={shareTarget.id}
+          documentName={shareTarget.name}
+          isInitiallyPublic={shareTarget.isPublic}
+          onVisibilityChange={(isPublic) => {
+            setShareTarget((prev) => prev ? { ...prev, isPublic } : null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 };
