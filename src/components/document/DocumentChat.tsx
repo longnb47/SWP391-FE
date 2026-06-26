@@ -12,25 +12,85 @@ export interface ChatMessage {
 }
 
 export interface DocumentChatProps {
-  documentId: number | null;
-  fileName: string;
+  // Single document mode props
+  documentId?: number | null;
+  fileName?: string;
   status?: string;
   onClose?: () => void;
+
+  // Folder mode props
+  isFolderMode?: boolean;
+  folderId?: number | null;
+  folderName?: string;
+  documentIds?: number[];
+  documents?: { documentId: number; originalFileName: string }[];
 }
 
-export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName, status, onClose }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'm1',
-      sender: 'ai',
-      senderName: 'Aether AI',
-      avatar: 'auto_awesome',
-      text: `I've analyzed "${fileName}". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?`,
-    },
-  ]);
+export const DocumentChat: React.FC<DocumentChatProps> = ({
+  documentId = null,
+  fileName = '',
+  status = '',
+  onClose,
+  isFolderMode = false,
+  folderId = null,
+  folderName = '',
+  documentIds = [],
+  documents = [],
+}) => {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (isFolderMode) {
+      return [
+        {
+          id: 'm1',
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'auto_awesome',
+          text: `I've analyzed the folder "${folderName || 'Folder'}" containing ${documentIds?.length || 0} ready documents. What would you like to know?`,
+        },
+      ];
+    } else {
+      return [
+        {
+          id: 'm1',
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'auto_awesome',
+          text: `I've analyzed "${fileName}". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?`,
+        },
+      ];
+    }
+  });
   const [inputVal, setInputVal] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Reset chat history when switching document or folder
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (isFolderMode) {
+      setMessages([
+        {
+          id: 'm1',
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'auto_awesome',
+          text: `I've analyzed the folder "${folderName || 'Folder'}" containing ${documentIds?.length || 0} ready documents. What would you like to know?`,
+        },
+      ]);
+    } else {
+      setMessages([
+        {
+          id: 'm1',
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'auto_awesome',
+          text: `I've analyzed "${fileName}". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?`,
+        },
+      ]);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, folderId, isFolderMode]);
 
   const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
 
@@ -56,7 +116,63 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName
     setInputVal('');
     setIsAiLoading(true);
 
-    if (documentId !== null) {
+    if (isFolderMode) {
+      try {
+        const response = await chatService.askMultiQuestion({
+          mode: 'SelectedDocuments',
+          selectedDocumentIds: documentIds || [],
+          folderId: folderId,
+          question: query,
+        });
+
+        if (response.data && response.data.success) {
+          const data = response.data.data;
+          
+          let citationStr = '';
+          if (data.usedDocumentIds && data.usedDocumentIds.length > 0 && documents) {
+            // Match usedDocumentIds with documents to find their names
+            const names = data.usedDocumentIds
+              .map((id) => {
+                const doc = documents.find((d) => d.documentId === id);
+                return doc ? doc.originalFileName : `Doc ID ${id}`;
+              });
+            citationStr = `Sources: ${names.join(', ')}`;
+          }
+
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: data.answer,
+            citation: citationStr || undefined,
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        } else {
+          const errorMsg = response.error || 'Failed to retrieve AI answer.';
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: `Error: ${errorMsg}`,
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        }
+      } catch (err) {
+        console.error('Error asking folder question:', err);
+        const aiResponse: ChatMessage = {
+          id: `msg-ai-${Date.now()}`,
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'smart_toy',
+          text: 'An unexpected error occurred while calling the AI folder service.',
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      } finally {
+        setIsAiLoading(false);
+      }
+    } else if (documentId !== null) {
       try {
         const response = await chatService.askQuestion(documentId, query);
         if (response.data && response.data.success) {
@@ -156,7 +272,9 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName
       <div className="h-14 border-b border-surface-container-high flex items-center px-container-padding bg-surface-bright shrink-0 shadow-sm z-20 select-none">
         <div className="flex items-center gap-2 text-primary">
           <span className="material-symbols-outlined fill select-none">smart_toy</span>
-          <h2 className="font-title-lg text-title-lg font-semibold">AI Document Assistant</h2>
+          <h2 className="font-title-lg text-title-lg font-semibold">
+            {isFolderMode ? 'AI Folder Assistant' : 'AI Document Assistant'}
+          </h2>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <button 
@@ -181,20 +299,37 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName
       {/* Chat History Messages */}
       <div className="flex-1 overflow-y-auto p-container-padding flex flex-col gap-6 custom-scrollbar pb-36">
         {messages.length === 1 && (
-          <div className={`p-4 rounded-xl border flex items-center gap-3 select-none ${
-            status === 'READY' 
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' 
-              : 'bg-rose-50 text-rose-800 border-rose-200/60'
-          }`}>
-            <span className={`material-symbols-outlined ${status === 'READY' ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {status === 'READY' ? 'check_circle' : 'info'}
-            </span>
-            <div className="text-sm font-semibold">
-              {status === 'READY' 
-                ? 'This document is READY for Q&A' 
-                : 'This document is NOT READY for Q&A'}
+          isFolderMode ? (
+            <div className={`p-4 rounded-xl border flex items-center gap-3 select-none ${
+              documentIds && documentIds.length > 0 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' 
+                : 'bg-rose-50 text-rose-800 border-rose-200/60'
+            }`}>
+              <span className={`material-symbols-outlined ${documentIds && documentIds.length > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {documentIds && documentIds.length > 0 ? 'check_circle' : 'info'}
+              </span>
+              <div className="text-sm font-semibold">
+                {documentIds && documentIds.length > 0 
+                  ? `Folder is READY for Q&A (${documentIds.length} document${documentIds.length > 1 ? 's' : ''})` 
+                  : 'No READY documents available in this folder'}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className={`p-4 rounded-xl border flex items-center gap-3 select-none ${
+              status === 'READY' 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' 
+                : 'bg-rose-50 text-rose-800 border-rose-200/60'
+            }`}>
+              <span className={`material-symbols-outlined ${status === 'READY' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {status === 'READY' ? 'check_circle' : 'info'}
+              </span>
+              <div className="text-sm font-semibold">
+                {status === 'READY' 
+                  ? 'This document is READY for Q&A' 
+                  : 'This document is NOT READY for Q&A'}
+              </div>
+            </div>
+          )
         )}
 
         {messages.map((msg) => {
@@ -278,7 +413,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({ documentId, fileName
           <input
             type="text"
             className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3 px-4 outline-none"
-            placeholder="Ask a question about this document..."
+            placeholder={isFolderMode ? `Ask a question about folder "${folderName}"...` : "Ask a question about this document..."}
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             disabled={isAiLoading}

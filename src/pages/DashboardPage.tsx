@@ -13,6 +13,7 @@ import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import FriendsView from '../components/dashboard/FriendsView';
 import ShareModal from '../components/dashboard/ShareModal';
+import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import { saveKnownUser, resolveOwnerEmail } from '../lib/userHelpers';
 import {
@@ -79,6 +80,9 @@ export const DashboardPage: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<{ id: number; name: string; isPublic: boolean } | null>(null);
 
+  // Folder chat state
+  const [isFolderChatOpen, setIsFolderChatOpen] = useState(false);
+
   const isLoggedIn = !!localStorage.getItem('token');
 
   // Load all folders list for move modal
@@ -106,6 +110,12 @@ export const DashboardPage: React.FC = () => {
       }
     }
   }, [isLoggedIn]);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setIsFolderChatOpen(currentFolderId !== null);
+  }, [currentFolderId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Load files from backend
   const fetchFiles = async () => {
@@ -438,6 +448,7 @@ export const DashboardPage: React.FC = () => {
     setCurrentFolderId(null);
     setCurrentFolderName(null);
     setActiveTab(tabName);
+    setIsFolderChatOpen(false);
   };
 
   const handleUploadFile = () => {
@@ -772,6 +783,21 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-2 select-none">
+            {currentFolderId !== null && (
+              <button
+                onClick={() => setIsFolderChatOpen(!isFolderChatOpen)}
+                className={`p-2.5 rounded-lg transition-colors border cursor-pointer flex items-center gap-1.5 ${
+                  isFolderChatOpen
+                    ? 'text-tertiary bg-tertiary-fixed/30 border-tertiary/20'
+                    : 'text-secondary hover:bg-surface-container-high border-transparent hover:border-outline-variant'
+                }`}
+                title="Chat with Folder"
+              >
+                <span className="material-symbols-outlined text-[20px] select-none">smart_toy</span>
+                <span className="text-label-md font-bold hidden sm:inline select-none">Folder Chat</span>
+              </button>
+            )}
+
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg transition-colors border cursor-pointer ${
@@ -803,95 +829,112 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Dynamic Layout switching */}
-        {viewMode === 'list' ? (
-          <FileList
-            items={filteredFiles}
-            isLoading={isLoadingFiles}
-            onItemClick={handleItemClick}
-            onItemActionClick={handleItemActionClick}
-            isTrash={activeTab === 'Trash'}
-            isCommunity={activeTab === 'Community'}
-          />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredFiles.map((file) => {
-              const iconInfo = getFileIconDetails(file.name, file.type);
-              return (
-                <div
-                  key={file.id}
-                  onClick={() => handleItemClick(file)}
-                  className="group bg-surface rounded-xl border border-surface-variant p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-40 relative"
-                >
-                  <div className="flex justify-between items-start">
-                    <span 
-                      className={`material-symbols-outlined text-display-lg icon-fill select-none ${iconInfo.classes}`}
+        <div className="flex gap-4 items-start">
+          <div className="flex-1 min-w-0">
+            {viewMode === 'list' ? (
+              <FileList
+                items={filteredFiles}
+                isLoading={isLoadingFiles}
+                onItemClick={handleItemClick}
+                onItemActionClick={handleItemActionClick}
+                isTrash={activeTab === 'Trash'}
+                isCommunity={activeTab === 'Community'}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredFiles.map((file) => {
+                  const iconInfo = getFileIconDetails(file.name, file.type);
+                  return (
+                    <div
+                      key={file.id}
+                      onClick={() => handleItemClick(file)}
+                      className="group bg-surface rounded-xl border border-surface-variant p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-40 relative"
                     >
-                      {iconInfo.name}
-                    </span>
-                    
-                    <div className="flex items-center gap-1">
-                      {/* Visibility indicator in Grid View */}
-                      {file.type === 'file' && (
+                      <div className="flex justify-between items-start">
                         <span 
-                          className="text-secondary material-symbols-outlined text-[16px] select-none mr-1"
-                          title={file.isPublic ? 'Public Document' : 'Private Document'}
+                          className={`material-symbols-outlined text-display-lg icon-fill select-none ${iconInfo.classes}`}
                         >
-                          {file.isPublic ? 'public' : 'lock'}
+                          {iconInfo.name}
                         </span>
-                      )}
-                      
-                      {activeTab === 'Trash' ? (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleItemActionClick(file, 'restore');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-primary rounded transition-opacity cursor-pointer select-none"
-                            title="Restore"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">restore</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleItemActionClick(file, 'delete_permanent');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
-                            title="Delete Permanently"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">delete_forever</span>
-                          </button>
-                        </>
-                      ) : activeTab === 'Community' ? (
-                        null
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleItemActionClick(file, 'delete');
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
-                          title="Delete"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                        </button>
-                      )}
+                        
+                        <div className="flex items-center gap-1">
+                          {/* Visibility indicator in Grid View */}
+                          {file.type === 'file' && (
+                            <span 
+                              className="text-secondary material-symbols-outlined text-[16px] select-none mr-1"
+                              title={file.isPublic ? 'Public Document' : 'Private Document'}
+                            >
+                              {file.isPublic ? 'public' : 'lock'}
+                            </span>
+                          )}
+                          
+                          {activeTab === 'Trash' ? (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleItemActionClick(file, 'restore');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-primary rounded transition-opacity cursor-pointer select-none"
+                                title="Restore"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">restore</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleItemActionClick(file, 'delete_permanent');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
+                                title="Delete Permanently"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">delete_forever</span>
+                              </button>
+                            </>
+                          ) : activeTab === 'Community' ? (
+                            null
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleItemActionClick(file, 'delete');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-secondary hover:text-error rounded transition-opacity cursor-pointer select-none"
+                              title="Delete"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary transition-colors">
+                          {file.name}
+                        </h4>
+                        <p className="font-mono-label text-[10px] text-secondary mt-1">
+                          {file.size === '--' ? 'Folder' : file.size} • {file.lastModified}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h4 className="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary transition-colors">
-                      {file.name}
-                    </h4>
-                    <p className="font-mono-label text-[10px] text-secondary mt-1">
-                      {file.size === '--' ? 'Folder' : file.size} • {file.lastModified}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+
+          {isFolderChatOpen && currentFolderId !== null && (
+            <div className="w-[380px] shrink-0 bg-surface border border-surface-variant rounded-2xl overflow-hidden shadow-lg h-[calc(100vh-230px)] min-h-[400px] animate-in slide-in-from-right duration-250">
+              <DocumentChat
+                isFolderMode={true}
+                folderId={currentFolderId}
+                folderName={currentFolderName || 'Folder'}
+                documentIds={apiFiles.filter((f) => f.status === 'READY').map((f) => f.documentId)}
+                documents={apiFiles.map((f) => ({ documentId: f.documentId, originalFileName: f.originalFileName }))}
+                onClose={() => setIsFolderChatOpen(false)}
+              />
+            </div>
+          )}
+        </div>
       </section>
       )}
       
