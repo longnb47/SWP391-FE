@@ -75,27 +75,9 @@ export const SmartChatView: React.FC = () => {
     fetchDocsForCitations();
   }, []);
 
-  // Create a new session
-  const handleCreateNewSession = async () => {
-    try {
-      const response = await chatService.createSession({
-        title: `Chat Session ${new Date().toLocaleDateString()}`,
-        mode: 'UserStorage',
-        selectedDocumentIds: null,
-        folderId: null,
-        useGeneralKnowledge: includePublic,
-        model: activeModel,
-        temperature: activeTemperature,
-      });
-
-      if (response.data && response.data.success) {
-        const newSessionObj = response.data.data;
-        setSessions((prev) => [newSessionObj, ...prev]);
-        setActiveSessionId(newSessionObj.sessionId);
-      }
-    } catch (err) {
-      console.error('Failed to create new session:', err);
-    }
+  // Create a new session (Clears active session to wait for first question)
+  const handleCreateNewSession = () => {
+    setActiveSessionId(null);
   };
 
   // Fetch all chat sessions on mount
@@ -104,15 +86,15 @@ export const SmartChatView: React.FC = () => {
     try {
       const response = await chatService.getSessions();
       if (response.data && response.data.success) {
-        const list = response.data.data;
+        // Filter sessions with mode === 'USER_STORAGE' only
+        const list = response.data.data.filter((s) => s.mode === 'USER_STORAGE');
         setSessions(list);
 
         // Select the most recent session if requested
         if (selectLatest && list.length > 0) {
           setActiveSessionId(list[0].sessionId);
-        } else if (list.length === 0) {
-          // If no sessions, automatically create one
-          handleCreateNewSession();
+        } else {
+          setActiveSessionId(null);
         }
       }
     } catch (err) {
@@ -124,13 +106,24 @@ export const SmartChatView: React.FC = () => {
 
   useEffect(() => {
     fetchSessions(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load messages when activeSessionId changes
   useEffect(() => {
     if (activeSessionId === null) {
-      setMessages([]);
+      setMessages([
+        {
+          id: 'welcome-generic',
+          sender: 'ai',
+          senderName: 'Aether AI',
+          avatar: 'auto_awesome',
+          text: `Hello! I'm your Smart Chat assistant. I can search across all files in your storage to answer questions.\n\n**Current Configuration:**\n* **Model:** \`${activeModel}\`\n* **Creativity (Temperature):** \`${activeTemperature}\`\n* **Search Scope:** ${
+            includePublic 
+              ? 'My Files + Public Community Documents (Broad retrieval)' 
+              : 'My Files only (Private retrieval)'
+          }\n\nWhat would you like to ask today?`,
+        },
+      ]);
       return;
     }
 
@@ -226,7 +219,6 @@ export const SmartChatView: React.FC = () => {
             setActiveSessionId(remaining[0].sessionId);
           } else {
             setActiveSessionId(null);
-            handleCreateNewSession(); // automatically create one if none left
           }
         }
       }
@@ -238,7 +230,7 @@ export const SmartChatView: React.FC = () => {
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim() || isAiLoading || activeSessionId === null) return;
+    if (!inputVal.trim() || isAiLoading) return;
 
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -254,7 +246,30 @@ export const SmartChatView: React.FC = () => {
     setIsAiLoading(true);
 
     try {
-      const response = await chatService.sendMessageToSession(activeSessionId, query);
+      let currentSessionId = activeSessionId;
+
+      if (currentSessionId === null) {
+        const createRes = await chatService.createSession({
+          title: query.length > 40 ? `${query.slice(0, 40)}...` : query,
+          mode: 'UserStorage',
+          selectedDocumentIds: null,
+          folderId: null,
+          useGeneralKnowledge: includePublic,
+          model: activeModel,
+          temperature: activeTemperature,
+        });
+
+        if (createRes.data && createRes.data.success) {
+          const newSessionObj = createRes.data.data;
+          setSessions((prev) => [newSessionObj, ...prev]);
+          currentSessionId = newSessionObj.sessionId;
+          setActiveSessionId(currentSessionId);
+        } else {
+          throw new Error('Failed to create session');
+        }
+      }
+
+      const response = await chatService.sendMessageToSession(currentSessionId, query);
 
       if (response.data && response.data.success) {
         const data = response.data.data;

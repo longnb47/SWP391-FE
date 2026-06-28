@@ -86,9 +86,12 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
       },
     ]);
 
-    const model = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
-    const savedTemp = localStorage.getItem('smartChatTemperature');
-    const temperature = savedTemp ? parseFloat(savedTemp) : 0.2;
+    const areArraysEqual = (arr1: number[] | null, arr2: number[]) => {
+      if (!arr1) return false;
+      if (arr1.length !== arr2.length) return false;
+      const s1 = new Set(arr1);
+      return arr2.every((x) => s1.has(x));
+    };
 
     const initSession = async () => {
       // Don't run session init if not loaded yet or invalid IDs
@@ -103,7 +106,12 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
           // Find matching session
           let matched: ChatSession | undefined;
           if (isFolderMode) {
-            matched = list.find((s) => s.mode === 'USER_STORAGE' && s.folderId === folderId);
+            // Match SELECTED_DOCUMENTS where IDs match exactly
+            matched = list.find(
+              (s) =>
+                s.mode === 'SELECTED_DOCUMENTS' &&
+                areArraysEqual(s.selectedDocumentIds, documentIds)
+            );
           } else {
             matched = list.find(
               (s) =>
@@ -137,22 +145,6 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
               if (formatted.length > 0) {
                 setMessages(formatted);
               }
-            }
-          } else {
-            // Create new session
-            const title = isFolderMode ? `Chat Folder: ${folderName || 'Folder'}` : `Chat: ${fileName || 'Document'}`;
-            const createRes = await chatService.createSession({
-              title,
-              mode: isFolderMode ? 'UserStorage' : 'SelectedDocuments',
-              selectedDocumentIds: isFolderMode ? null : [documentId!],
-              folderId: isFolderMode ? folderId : null,
-              useGeneralKnowledge: isFolderMode ? false : null,
-              model,
-              temperature,
-            });
-
-            if (createRes.data && createRes.data.success) {
-              setSessionId(createRes.data.data.sessionId);
             }
           }
         }
@@ -336,9 +328,35 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
       }
     };
 
-    if (sessionId !== null) {
+    let currentSessionId = sessionId;
+
+    if (currentSessionId === null) {
       try {
-        const response = await chatService.sendMessageToSession(sessionId, query);
+        const title = isFolderMode ? `Chat Folder: ${folderName || 'Folder'}` : `Chat: ${fileName || 'Document'}`;
+        const createRes = await chatService.createSession({
+          title,
+          mode: 'SelectedDocuments',
+          selectedDocumentIds: isFolderMode ? (documentIds || []) : [documentId!],
+          folderId: null,
+          useGeneralKnowledge: null,
+          model,
+          temperature,
+        });
+
+        if (createRes.data && createRes.data.success) {
+          currentSessionId = createRes.data.data.sessionId;
+          setSessionId(currentSessionId);
+        } else {
+          throw new Error('Failed to create session');
+        }
+      } catch (err) {
+        console.warn('Failed to create session dynamically, using stateless fallback:', err);
+      }
+    }
+
+    if (currentSessionId !== null) {
+      try {
+        const response = await chatService.sendMessageToSession(currentSessionId, query);
         if (response.data && response.data.success) {
           const data = response.data.data;
           
