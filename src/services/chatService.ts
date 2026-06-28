@@ -13,6 +13,8 @@ export interface AskQuestionResponse {
   documentId: number;
   answer: string;
   sources: ChatSource[];
+  model?: string;
+  temperature?: number;
 }
 
 export interface AskMultiQuestionResponse {
@@ -20,13 +22,22 @@ export interface AskMultiQuestionResponse {
   mode: string;
   policy: string;
   usedDocumentIds: number[];
+  model?: string;
+  temperature?: number;
 }
 
 export const chatService = {
-  async askQuestion(documentId: number, question: string): Promise<ApiResponse<BackendResponse<AskQuestionResponse>>> {
+  async askQuestion(
+    documentId: number, 
+    question: string,
+    model?: string | null,
+    temperature?: number | null
+  ): Promise<ApiResponse<BackendResponse<AskQuestionResponse>>> {
     return apiClient.post<BackendResponse<AskQuestionResponse>>('/chat/ask', {
       documentId,
       question,
+      model,
+      temperature,
     });
   },
 
@@ -36,6 +47,8 @@ export const chatService = {
     folderId?: number | null;
     question: string;
     useGeneralKnowledge?: boolean | null;
+    model?: string | null;
+    temperature?: number | null;
   }): Promise<ApiResponse<BackendResponse<AskMultiQuestionResponse>>> {
     return apiClient.post<BackendResponse<AskMultiQuestionResponse>>('/chat/ask-multi', payload);
   },

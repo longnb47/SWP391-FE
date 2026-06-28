@@ -15,8 +15,9 @@ export interface ChatMessage {
 export const SmartChatView: React.FC = () => {
   // Read config from localStorage
   const includePublic = localStorage.getItem('smartChatIncludePublic') === 'true';
-  const activeModel = localStorage.getItem('smartChatModel') || 'Gemini 1.5 Flash (Default)';
-  const activePersona = localStorage.getItem('smartChatPersona') || 'Helpful Tutor (Default)';
+  const activeModel = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
+  const savedTemp = localStorage.getItem('smartChatTemperature');
+  const activeTemperature = savedTemp ? parseFloat(savedTemp) : 0.2;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputVal, setInputVal] = useState('');
@@ -42,7 +43,7 @@ export const SmartChatView: React.FC = () => {
         sender: 'ai',
         senderName: 'Aether AI',
         avatar: 'auto_awesome',
-        text: `Hello! I'm your Smart Chat assistant. I can search across all files in your storage to answer questions.\n\n**Current Configuration:**\n* **Model:** ${activeModel}\n* **Style (Persona):** ${activePersona}\n* **Search Scope:** ${
+        text: `Hello! I'm your Smart Chat assistant. I can search across all files in your storage to answer questions.\n\n**Current Configuration:**\n* **Model:** \`${activeModel}\`\n* **Creativity (Temperature):** \`${activeTemperature}\`\n* **Search Scope:** ${
           includePublic 
             ? 'My Files + Public Community Documents (Broad retrieval)' 
             : 'My Files only (Private retrieval)'
@@ -106,6 +107,8 @@ export const SmartChatView: React.FC = () => {
         folderId: null,
         question: query,
         useGeneralKnowledge: includePublic,
+        model: activeModel,
+        temperature: activeTemperature,
       });
 
       if (response.data && response.data.success) {
@@ -174,7 +177,9 @@ export const SmartChatView: React.FC = () => {
                   : 'Scope: My Files only'}
               </span>
               <span className="text-outline">•</span>
-              <span>Model: {activeModel.split(' ')[0]}</span>
+              <span>Model: <code className="bg-surface-container px-1 py-0.5 rounded text-primary font-mono">{activeModel}</code></span>
+              <span className="text-outline">•</span>
+              <span>Temp: {activeTemperature}</span>
             </p>
           </div>
         </div>

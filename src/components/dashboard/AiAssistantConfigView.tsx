@@ -6,14 +6,11 @@ export const AiAssistantConfigView: React.FC = () => {
     return localStorage.getItem('smartChatIncludePublic') === 'true';
   });
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('smartChatModel') || 'Gemini 1.5 Flash (Default)';
-  });
-  const [selectedPersona, setSelectedPersona] = useState<string>(() => {
-    return localStorage.getItem('smartChatPersona') || 'Helpful Tutor (Default)';
+    return localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
   });
   const [temperature, setTemperature] = useState<number>(() => {
     const savedTemp = localStorage.getItem('smartChatTemperature');
-    return savedTemp ? parseFloat(savedTemp) : 0.7;
+    return savedTemp ? parseFloat(savedTemp) : 0.2;
   });
 
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -22,7 +19,6 @@ export const AiAssistantConfigView: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('smartChatIncludePublic', String(includePublic));
     localStorage.setItem('smartChatModel', selectedModel);
-    localStorage.setItem('smartChatPersona', selectedPersona);
     localStorage.setItem('smartChatTemperature', String(temperature));
 
     // Flash a brief "Settings Saved" indicator
@@ -31,18 +27,12 @@ export const AiAssistantConfigView: React.FC = () => {
     /* eslint-enable react-hooks/set-state-in-effect */
     const timer = setTimeout(() => setSaveStatus(null), 1500);
     return () => clearTimeout(timer);
-  }, [includePublic, selectedModel, selectedPersona, temperature]);
+  }, [includePublic, selectedModel, temperature]);
 
   const models = [
-    { id: 'flash', name: 'Gemini 1.5 Flash (Default)', desc: 'Fast, lightweight and highly responsive.' },
-    { id: 'pro', name: 'Gemini 1.5 Pro', desc: 'Highly complex reasoning and multimodality.' },
-    { id: 'claude', name: 'Claude 3.5 Sonnet', desc: 'State-of-the-art code generation and explanation.' }
-  ];
-
-  const personas = [
-    { id: 'tutor', name: 'Helpful Tutor (Default)', desc: 'Provides detailed explanations and breakdowns.' },
-    { id: 'academic', name: 'Strict Academic', desc: 'Answers questions concisely, adhering strictly to document context.' },
-    { id: 'summarizer', name: 'Concise Summarizer', desc: 'Provides bulleted summaries and bulletpoints.' }
+    { id: 'gemini-2.5-flash-lite', name: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite (Default)', desc: 'Fast, lightweight and highly responsive.' },
+    { id: 'gemini-3.1-flash-lite', name: 'gemini-3.1-flash-lite', displayName: 'Gemini 3.1 Flash Lite', desc: 'Standard model for regular queries.' },
+    { id: 'gemini-3.5-flash', name: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', desc: 'Advanced model for complex tasks and coding.' }
   ];
 
   return (
@@ -54,7 +44,7 @@ export const AiAssistantConfigView: React.FC = () => {
             AI Assistant Config
           </h2>
           <p className="text-secondary text-body-sm mt-1">
-            Configure the default search scope, model parameters, and response style for Smart Chat.
+            Configure the default search scope, AI model, and temperature parameters for Smart Chat.
           </p>
         </div>
         
@@ -131,8 +121,8 @@ export const AiAssistantConfigView: React.FC = () => {
                 className="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary"
               />
               <div className="flex justify-between text-[10px] text-secondary select-none">
-                <span>Strict Context (0.0)</span>
-                <span>Balanced (0.7)</span>
+                <span>Deterministic (0.0)</span>
+                <span>Default (0.2)</span>
                 <span>Creative (1.0)</span>
               </div>
             </div>
@@ -140,7 +130,7 @@ export const AiAssistantConfigView: React.FC = () => {
 
         </div>
 
-        {/* Right column: Models & Personas */}
+        {/* Right column: Models config */}
         <div className="space-y-6">
           
           {/* Card 3: Model config */}
@@ -171,44 +161,8 @@ export const AiAssistantConfigView: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <span className="text-body-sm font-bold text-on-surface block">{model.name}</span>
+                    <span className="text-body-sm font-bold text-on-surface block">{model.displayName}</span>
                     <span className="text-label-md text-secondary block mt-0.5">{model.desc}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 4: Persona config */}
-          <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 p-5 space-y-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 text-tertiary">
-              <span className="material-symbols-outlined text-[24px]">face</span>
-              <h3 className="text-title-md font-bold text-on-surface select-none">Response Style (Persona)</h3>
-            </div>
-
-            <div className="space-y-3">
-              {personas.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedPersona(p.name)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 select-none ${
-                    selectedPersona === p.name
-                      ? 'border-tertiary/50 bg-tertiary/5 ring-1 ring-tertiary/20'
-                      : 'border-outline-variant/30 bg-surface hover:bg-surface-container-high'
-                  }`}
-                >
-                  <div className="pt-0.5">
-                    <input
-                      type="radio"
-                      name="aiPersona"
-                      checked={selectedPersona === p.name}
-                      onChange={() => setSelectedPersona(p.name)}
-                      className="accent-tertiary cursor-pointer h-4 w-4"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-body-sm font-bold text-on-surface block">{p.name}</span>
-                    <span className="text-label-md text-secondary block mt-0.5">{p.desc}</span>
                   </div>
                 </div>
               ))}

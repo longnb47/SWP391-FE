@@ -116,6 +116,10 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
     setInputVal('');
     setIsAiLoading(true);
 
+    const model = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
+    const savedTemp = localStorage.getItem('smartChatTemperature');
+    const temperature = savedTemp ? parseFloat(savedTemp) : 0.2;
+
     if (isFolderMode) {
       try {
         const response = await chatService.askMultiQuestion({
@@ -123,6 +127,8 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
           selectedDocumentIds: documentIds || [],
           folderId: folderId,
           question: query,
+          model,
+          temperature,
         });
 
         if (response.data && response.data.success) {
@@ -174,7 +180,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
       }
     } else if (documentId !== null) {
       try {
-        const response = await chatService.askQuestion(documentId, query);
+        const response = await chatService.askQuestion(documentId, query, model, temperature);
         if (response.data && response.data.success) {
           const data = response.data.data;
           
