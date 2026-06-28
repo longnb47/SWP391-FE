@@ -71,6 +71,8 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
   const [sessionId, setSessionId] = useState<number | null>(null);
 
+  const documentIdsStr = documentIds?.join(',') || '';
+
   // Initialize/Load session when switching document or folder
   useEffect(() => {
     setSessionId(null);
@@ -155,7 +157,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
     initSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId, folderId, isFolderMode]);
+  }, [documentId, folderId, isFolderMode, documentIdsStr]);
 
   // Auto-scroll chat history
   useEffect(() => {
