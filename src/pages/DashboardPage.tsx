@@ -929,7 +929,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {isFolderChatOpen && currentFolderId !== null && (
-            <div className="w-[380px] shrink-0 bg-surface border border-surface-variant rounded-2xl overflow-hidden shadow-lg h-[calc(100vh-230px)] min-h-[400px] animate-in slide-in-from-right duration-250">
+            <div className="w-[480px] shrink-0 bg-surface border border-surface-variant rounded-2xl overflow-hidden shadow-lg h-[calc(100vh-180px)] min-h-[450px] animate-in slide-in-from-right duration-250">
               <DocumentChat
                 isFolderMode={true}
                 folderId={currentFolderId}
