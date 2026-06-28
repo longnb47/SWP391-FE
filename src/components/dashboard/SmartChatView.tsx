@@ -521,15 +521,15 @@ export const SmartChatView: React.FC = () => {
             <input
               type="text"
               className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3.5 px-4 outline-none"
-              placeholder={activeSessionId === null ? "Please select or create a chat session..." : `Ask a question across all ${activeSessionObj?.policy === 'DOCUMENTS_PLUS_GENERAL' ? 'private and public' : 'private'} documents...`}
+              placeholder={activeSessionId === null ? "Type your first message to start a new chat..." : `Ask a question across all ${activeSessionObj?.policy === 'DOCUMENTS_PLUS_GENERAL' ? 'private and public' : 'private'} documents...`}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              disabled={isAiLoading || activeSessionId === null}
+              disabled={isAiLoading}
             />
             <button 
               type="submit"
               className="m-2 w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-              disabled={isAiLoading || !inputVal.trim() || activeSessionId === null}
+              disabled={isAiLoading || !inputVal.trim()}
             >
               <span className="material-symbols-outlined text-[20px] select-none">arrow_upward</span>
             </button>
