@@ -12,6 +12,8 @@ import CreateFolderModal from '../components/dashboard/CreateFolderModal';
 import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import FriendsView from '../components/dashboard/FriendsView';
+import AiAssistantConfigView from '../components/dashboard/AiAssistantConfigView';
+import SmartChatView from '../components/dashboard/SmartChatView';
 import ShareModal from '../components/dashboard/ShareModal';
 import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
@@ -752,6 +754,10 @@ export const DashboardPage: React.FC = () => {
     >
       {activeTab === 'Friends' ? (
         <FriendsView />
+      ) : activeTab === 'AI Assistant' ? (
+        <AiAssistantConfigView />
+      ) : activeTab === 'Smart Chat' ? (
+        <SmartChatView />
       ) : (
         /* Main File List / Grid Section */
         <section className="space-y-4">

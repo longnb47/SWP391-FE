@@ -25,7 +25,7 @@ interface SidebarContentProps {
 
 const navItems = [
   { name: 'My Files', icon: 'folder_open' },
-  { name: 'Smart Search', icon: 'travel_explore' },
+  { name: 'Smart Chat', icon: 'forum' },
   { name: 'Community', icon: 'public' },
   { name: 'Shared', icon: 'group' },
   { name: 'Friends', icon: 'person_add' },
