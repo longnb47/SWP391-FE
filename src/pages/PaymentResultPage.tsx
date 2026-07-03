@@ -1,6 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import subscriptionService from '../services/subscriptionService';
 
 export const PaymentResultPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,60 +12,30 @@ export const PaymentResultPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const verifyPayment = async () => {
-      setIsLoading(true);
-      setErrorMsg(null);
+    setErrorMsg(null);
 
-      // Parse amount from query params just for display purposes
-      const params = new URLSearchParams(location.search);
-      const vnpAmount = params.get('vnp_Amount');
-      if (vnpAmount) {
-        const numericAmount = parseFloat(vnpAmount) / 100;
-        setAmount(new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount));
-      }
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const transactionNo = params.get('transactionNo');
+    const message = params.get('message');
+    const amountVal = params.get('amount') || params.get('vnp_Amount');
 
-      const vnpResponseCode = params.get('vnp_ResponseCode');
-      const vnpTransactionStatus = params.get('vnp_TransactionStatus');
+    if (amountVal) {
+      const rawAmount = parseFloat(amountVal);
+      // If amount contains the raw VNPay format (multiplied by 100), divide it.
+      const displayAmount = rawAmount > 5000000 ? rawAmount / 100 : rawAmount;
+      setAmount(new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(displayAmount));
+    }
 
-      // If VNPay response code is not '00', it's already a client-side failure
-      if (vnpResponseCode && vnpResponseCode !== '00') {
-        setIsSuccess(false);
-        setErrorMsg(getVNPayErrorText(vnpResponseCode));
-        setIsLoading(false);
-        return;
-      }
-      if (vnpTransactionStatus && vnpTransactionStatus !== '00') {
-        setIsSuccess(false);
-        setErrorMsg('Transaction was canceled or failed.');
-        setIsLoading(false);
-        return;
-      }
+    if (status?.toUpperCase() === 'SUCCESS') {
+      setIsSuccess(true);
+      setTxnNo(transactionNo);
+    } else {
+      setIsSuccess(false);
+      setErrorMsg(message || 'Payment transaction failed or was canceled.');
+    }
 
-      try {
-        const response = await subscriptionService.verifyVNPayPayment(location.search);
-        if (response.data && response.data.success) {
-          const data = response.data.data;
-          if (data.status === 'SUCCESS') {
-            setIsSuccess(true);
-            setTxnNo(data.transactionNo);
-          } else {
-            setIsSuccess(false);
-            setErrorMsg(`Transaction status: ${data.status}`);
-          }
-        } else {
-          setIsSuccess(false);
-          setErrorMsg(response.error || 'Backend signature verification failed.');
-        }
-      } catch (err) {
-        console.error('Error verifying payment:', err);
-        setIsSuccess(false);
-        setErrorMsg('An unexpected error occurred while verifying payment.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    verifyPayment();
+    setIsLoading(false);
   }, [location.search]);
 
   return (
@@ -146,28 +116,6 @@ export const PaymentResultPage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-const getVNPayErrorText = (code: string) => {
-  switch (code) {
-    case '01': return 'Transaction already exists.';
-    case '02': return 'Merchant configuration error.';
-    case '04': return 'Transaction suspended.';
-    case '05': return 'Incorrect password limit exceeded.';
-    case '06': return 'OTP verification limit exceeded.';
-    case '07': return 'Incorrect password limit exceeded.';
-    case '09': return 'Transaction declined by bank.';
-    case '10': return 'Invalid billing details.';
-    case '11': return 'Timeout processing payment.';
-    case '12': return 'Card status is blocked or inactive.';
-    case '13': return 'Incorrect OTP entered.';
-    case '24': return 'Transaction canceled by customer.';
-    case '51': return 'Insufficient funds in account.';
-    case '65': return 'Daily transfer limit exceeded.';
-    case '75': return 'Emergency maintenance. Bank server down.';
-    case '79': return 'Unknown card processing error.';
-    default: return 'Transaction failed (VNPAY Code ' + code + ').';
-  }
 };
 
 export default PaymentResultPage;
