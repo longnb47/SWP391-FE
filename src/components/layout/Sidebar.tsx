@@ -41,6 +41,12 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onNewFolderClick,
   storage,
 }) => {
+  const role = localStorage.getItem('userRole');
+  const items = [...navItems];
+  if (role === 'ADMIN') {
+    items.push({ name: 'Admin Plans', icon: 'admin_panel_settings' });
+  }
+
   const handleTabClick = (tabName: string) => {
     if (onTabChange) onTabChange(tabName);
     if (onClose) onClose(); // Close mobile sidebar
@@ -55,7 +61,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <span className="material-symbols-outlined icon-fill select-none text-[22px]">cloud_sync</span>
           </div>
           <div>
-            <h1 className="font-title-lg text-title-lg font-black text-on-surface tracking-tight">AetherDocs</h1>
+            <h1 className="font-title-lg text-title-lg font-bold text-on-surface tracking-tight">AetherDocs</h1>
             <p className="font-label-md text-label-md text-secondary select-none">Intelligent Storage</p>
           </div>
         </div>
@@ -95,7 +101,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
       {/* Navigation Links */}
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto select-none">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = activeTab === item.name;
           return (
             <a

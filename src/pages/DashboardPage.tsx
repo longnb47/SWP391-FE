@@ -15,6 +15,7 @@ import FriendsView from '../components/dashboard/FriendsView';
 import AiAssistantConfigView from '../components/dashboard/AiAssistantConfigView';
 import SmartChatView from '../components/dashboard/SmartChatView';
 import ShareModal from '../components/dashboard/ShareModal';
+import AdminPlansView from '../components/dashboard/AdminPlansView';
 import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import { saveKnownUser, resolveOwnerEmail } from '../lib/userHelpers';
@@ -758,6 +759,8 @@ export const DashboardPage: React.FC = () => {
         <AiAssistantConfigView />
       ) : activeTab === 'Smart Chat' ? (
         <SmartChatView />
+      ) : activeTab === 'Admin Plans' ? (
+        <AdminPlansView />
       ) : (
         /* Main File List / Grid Section */
         <section className="space-y-4">

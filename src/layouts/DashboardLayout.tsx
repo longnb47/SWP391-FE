@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import SubscriptionModal from '../components/dashboard/SubscriptionModal';
 import { authService } from '../services/authService';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
@@ -28,6 +29,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isLoggedIn = !!localStorage.getItem('token');
 
   const handleMobileMenuToggle = () => {
@@ -59,7 +61,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onSearch={onSearch}
           onNotificationClick={() => alert('Notifications clicked!')}
           onHelpClick={() => alert('Help center clicked!')}
-          onUpgradeClick={() => alert('Upgrade modal clicked!')}
+          onUpgradeClick={() => setIsSubModalOpen(true)}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
           onProfileClick={async () => {
@@ -77,6 +79,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               localStorage.removeItem('refreshToken');
               localStorage.removeItem('userEmail');
               localStorage.removeItem('userId');
+              localStorage.removeItem('userRole');
               window.location.href = '/login';
             }
           }}
@@ -95,6 +98,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </main>
         )}
       </div>
+
+      {/* Subscription Plans Modal */}
+      <SubscriptionModal 
+        isOpen={isSubModalOpen}
+        onClose={() => setIsSubModalOpen(false)}
+      />
     </div>
   );
 };
