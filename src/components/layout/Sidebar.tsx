@@ -44,7 +44,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   const role = localStorage.getItem('userRole');
   const items = [...navItems];
   if (role === 'ADMIN') {
-    items.push({ name: 'Admin Plans', icon: 'admin_panel_settings' });
+    items.push({ name: 'Admin', icon: 'admin_panel_settings' });
   }
 
   const handleTabClick = (tabName: string) => {

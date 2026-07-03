@@ -759,7 +759,7 @@ export const DashboardPage: React.FC = () => {
         <AiAssistantConfigView />
       ) : activeTab === 'Smart Chat' ? (
         <SmartChatView />
-      ) : activeTab === 'Admin Plans' ? (
+      ) : activeTab === 'Admin' ? (
         <AdminPlansView />
       ) : (
         /* Main File List / Grid Section */
