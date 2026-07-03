@@ -11,6 +11,7 @@ export interface TopbarProps {
   onLogoutClick?: () => void;
   isLoggedIn?: boolean;
   onLoginClick?: () => void;
+  avatarUrl?: string | null;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -23,9 +24,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   onLogoutClick,
   isLoggedIn = false,
   onLoginClick,
+  avatarUrl,
 }) => {
-  const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -96,13 +96,17 @@ export const Topbar: React.FC<TopbarProps> = ({
           <div ref={menuRef} className="relative ml-2">
             <div
               onClick={() => setIsMenuOpen((open) => !open)}
-              className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors"
+              className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors flex items-center justify-center"
             >
-              <img
-                src={userAvatar}
-                alt="User avatar"
-                className="w-full h-full object-cover"
-              />
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="User avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[20px] text-secondary select-none">person</span>
+              )}
             </div>
 
             {isMenuOpen && (

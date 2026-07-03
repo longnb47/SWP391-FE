@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { userService } from '../services/userService';
 import type { UserProfileResponse } from '../services/userService';
+import { useUserProfile } from '../contexts/UserProfileContext';
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem('token');
+  const { setAvatarUrl } = useUserProfile();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -37,6 +39,7 @@ export const ProfilePage: React.FC = () => {
       setProfile(data);
       setFullName(data.fullName);
       setBio(data.bio || '');
+      setAvatarUrl(data.avatarUrl);
     } else {
       setLoadError(response.error || 'Server error');
     }
@@ -111,6 +114,7 @@ export const ProfilePage: React.FC = () => {
     const response = await userService.uploadAvatar(file);
     if (response.data && response.data.success) {
       setProfile(response.data.data);
+      setAvatarUrl(response.data.data.avatarUrl);
     } else {
       const status = response.status;
       if (status === 400 || status === 413) {

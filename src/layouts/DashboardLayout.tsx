@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import { authService } from '../services/authService';
+import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
 export interface DashboardLayoutProps {
@@ -29,6 +30,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const isLoggedIn = !!localStorage.getItem('token');
+  const { avatarUrl } = useUserProfile();
 
   const handleMobileMenuToggle = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -83,6 +85,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onLoginClick={() => navigate('/login')}
           onProfileClick={() => navigate('/profile')}
           onLogoutClick={handleLogout}
+          avatarUrl={avatarUrl}
         />
 
         {/* Scrollable Main Canvas */}
