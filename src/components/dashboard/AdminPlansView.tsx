@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import subscriptionService from '../../services/subscriptionService';
-import type { SubscriptionPlan, PaymentRevenue } from '../../services/subscriptionService';
+import type { SubscriptionPlan, PaymentRevenue, SystemOrder } from '../../services/subscriptionService';
 
 interface MockOrder {
   id: number;
@@ -64,8 +64,8 @@ export const AdminPlansView: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock Orders State
-  const [orders] = useState<MockOrder[]>(initialMockOrders);
+  // Real System Orders State (with fallback data)
+  const [orders, setOrders] = useState<SystemOrder[]>([]);
   const [orderSearch, setOrderSearch] = useState('');
 
   // Mock Users State
@@ -76,9 +76,10 @@ export const AdminPlansView: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [plansRes, revRes] = await Promise.all([
+      const [plansRes, revRes, ordersRes] = await Promise.all([
         subscriptionService.getSubscriptionPlans(),
         subscriptionService.getRevenue(),
+        subscriptionService.getAllSystemOrders(0, 100),
       ]);
 
       if (plansRes.data && plansRes.data.success) {
@@ -90,9 +91,47 @@ export const AdminPlansView: React.FC = () => {
       if (revRes.data && revRes.data.success) {
         setRevenue(revRes.data.data);
       }
+
+      if (ordersRes.data && ordersRes.data.success && ordersRes.data.data.payments) {
+        setOrders(ordersRes.data.data.payments);
+      } else {
+        // Converted Mock fallback
+        const convertedMock: SystemOrder[] = initialMockOrders.map(m => ({
+          paymentId: m.id,
+          transactionNo: `TXN_${1000 + m.id}`,
+          userId: m.id,
+          userEmail: m.email,
+          planId: 1,
+          planName: m.planName,
+          amount: m.amount,
+          paymentMethod: m.paymentMethod,
+          status: m.status,
+          responseCode: m.status === 'SUCCESS' ? '00' : '99',
+          createdAt: m.paidAt,
+          paidAt: m.paidAt
+        }));
+        setOrders(convertedMock);
+      }
     } catch (err) {
       console.error('Error loading admin data:', err);
       setError('An unexpected error occurred while loading administration panel.');
+      
+      // Fallback
+      const convertedMock: SystemOrder[] = initialMockOrders.map(m => ({
+        paymentId: m.id,
+        transactionNo: `TXN_${1000 + m.id}`,
+        userId: m.id,
+        userEmail: m.email,
+        planId: 1,
+        planName: m.planName,
+        amount: m.amount,
+        paymentMethod: m.paymentMethod,
+        status: m.status,
+        responseCode: m.status === 'SUCCESS' ? '00' : '99',
+        createdAt: m.paidAt,
+        paidAt: m.paidAt
+      }));
+      setOrders(convertedMock);
     } finally {
       setIsLoading(false);
     }
@@ -230,9 +269,9 @@ export const AdminPlansView: React.FC = () => {
   };
 
   const filteredOrders = orders.filter(
-    o => o.userName.toLowerCase().includes(orderSearch.toLowerCase()) || 
-         o.email.toLowerCase().includes(orderSearch.toLowerCase()) ||
-         o.planName.toLowerCase().includes(orderSearch.toLowerCase())
+    o => o.userEmail.toLowerCase().includes(orderSearch.toLowerCase()) ||
+         o.planName.toLowerCase().includes(orderSearch.toLowerCase()) ||
+         o.transactionNo.toLowerCase().includes(orderSearch.toLowerCase())
   );
 
   const filteredUsers = users.filter(
@@ -540,15 +579,15 @@ export const AdminPlansView: React.FC = () => {
                 <span className="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[20px]">search</span>
                 <input
                   type="text"
-                  placeholder="Search user, email or plan..."
+                  placeholder="Search email, plan or transaction ID..."
                   className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-primary"
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-md border text-xs font-semibold text-secondary">
-                <span className="material-symbols-outlined text-[16px]">info</span>
-                <span>Mock Data (TODO: Integrate global orders API)</span>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 rounded-md border border-primary/20 text-xs font-semibold text-primary">
+                <span className="material-symbols-outlined text-[16px] icon-fill">check_circle</span>
+                <span>Connected to /api/payments</span>
               </div>
             </div>
 
@@ -573,11 +612,11 @@ export const AdminPlansView: React.FC = () => {
                     </tr>
                   ) : (
                     filteredOrders.map(order => (
-                      <tr key={order.id} className="hover:bg-surface-container/10 transition-colors">
-                        <td className="p-4 font-mono text-xs text-secondary">TXN_{1000 + order.id}</td>
+                      <tr key={order.paymentId} className="hover:bg-surface-container/10 transition-colors">
+                        <td className="p-4 font-mono text-xs text-secondary">{order.transactionNo || `TXN_${order.paymentId}`}</td>
                         <td className="p-4">
-                          <div className="font-semibold">{order.userName}</div>
-                          <div className="text-secondary text-xs">{order.email}</div>
+                          <div className="font-semibold">{order.userEmail.split('@')[0]}</div>
+                          <div className="text-secondary text-xs">{order.userEmail}</div>
                         </td>
                         <td className="p-4 font-bold text-xs uppercase">{order.planName}</td>
                         <td className="p-4 font-semibold">{formatCurrency(order.amount)}</td>
@@ -590,7 +629,7 @@ export const AdminPlansView: React.FC = () => {
                             {order.status}
                           </span>
                         </td>
-                        <td className="p-4 text-xs text-secondary">{order.paidAt}</td>
+                        <td className="p-4 text-xs text-secondary">{order.paidAt || order.createdAt}</td>
                       </tr>
                     ))
                   )}

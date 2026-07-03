@@ -46,13 +46,17 @@ export interface PurchaseResponse {
 }
 
 export interface SystemOrder {
-  id: number;
-  userName: string;
-  email: string;
+  paymentId: number;
+  transactionNo: string;
+  userId: number;
+  userEmail: string;
+  planId: number;
   planName: string;
   amount: number;
   paymentMethod: string;
   status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  responseCode: string;
+  createdAt: string;
   paidAt: string;
 }
 
@@ -85,8 +89,24 @@ export const subscriptionService = {
     return apiClient.get<BackendResponse<{ transactionNo: string; status: string; alreadyProcessed: boolean }>>(`/payments/vnpay-return${queryString}`);
   },
 
-  async getAllSystemOrders(): Promise<ApiResponse<BackendResponse<SystemOrder[]>>> {
-    return apiClient.get<BackendResponse<SystemOrder[]>>('/admin/payments');
+  async getAllSystemOrders(page = 0, size = 100, status?: string): Promise<ApiResponse<BackendResponse<{
+    payments: SystemOrder[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+  }>>> {
+    let url = `/payments?page=${page}&size=${size}`;
+    if (status) {
+      url += `&status=${status}`;
+    }
+    return apiClient.get<BackendResponse<{
+      payments: SystemOrder[];
+      page: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    }>>(url);
   },
 };
 
