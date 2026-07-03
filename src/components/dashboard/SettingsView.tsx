@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { userService } from '../../services/userService';
 import type { Theme, UpdateUserSettingsRequest, UserSettingsResponse, Visibility } from '../../services/userService';
+import { applyTheme } from '../../lib/themeHelpers';
 
 const THEME_OPTIONS: Theme[] = ['LIGHT', 'DARK', 'SYSTEM'];
 const VISIBILITY_OPTIONS: Visibility[] = ['PUBLIC', 'FRIENDS_ONLY', 'PRIVATE'];
@@ -52,6 +53,7 @@ export const SettingsView: React.FC = () => {
     const response = await userService.getMySettings();
     if (response.data && response.data.success) {
       setSettings(response.data.data);
+      applyTheme(response.data.data.theme);
     } else {
       setLoadError(response.error || 'Server error');
     }
@@ -68,6 +70,7 @@ export const SettingsView: React.FC = () => {
     const previous = settings;
     // Optimistic update so toggles/selects feel instant
     setSettings({ ...settings, [field]: value } as UserSettingsResponse);
+    if (field === 'theme') applyTheme(value as Theme);
     setSaveStatus(null);
     setIsSaving(true);
 
@@ -76,9 +79,11 @@ export const SettingsView: React.FC = () => {
 
     if (response.data && response.data.success) {
       setSettings(response.data.data);
+      applyTheme(response.data.data.theme);
       setSaveStatus({ type: 'success', message: 'Settings saved.' });
     } else {
       setSettings(previous);
+      applyTheme(previous.theme);
       setSaveStatus({ type: 'error', message: response.error || 'Failed to save settings.' });
     }
     setIsSaving(false);
