@@ -10,6 +10,7 @@ export const ProfilePage: React.FC = () => {
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
@@ -27,26 +28,27 @@ export const ProfilePage: React.FC = () => {
   const [dragging, setDragging] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  const loadProfile = async () => {
+    setIsLoadingProfile(true);
+    setLoadError(null);
+    const response = await userService.getMyProfile();
+    if (response.data && response.data.success) {
+      const data = response.data.data;
+      setProfile(data);
+      setFullName(data.fullName);
+      setBio(data.bio || '');
+    } else {
+      setLoadError(response.error || 'Server error');
+    }
+    setIsLoadingProfile(false);
+  };
+
   useEffect(() => {
     if (!isLoggedIn) {
-      alert('Please log in to view your profile.');
-      navigate('/login');
+      navigate(`/login?error=${encodeURIComponent('Please log in to view your profile.')}`);
       return;
     }
 
-    const loadProfile = async () => {
-      setIsLoadingProfile(true);
-      const response = await userService.getMyProfile();
-      if (response.data && response.data.success) {
-        const data = response.data.data;
-        setProfile(data);
-        setFullName(data.fullName);
-        setBio(data.bio || '');
-      } else {
-        alert(`Failed to load profile: ${response.error || 'Server error'}`);
-      }
-      setIsLoadingProfile(false);
-    };
     loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -133,11 +135,33 @@ export const ProfilePage: React.FC = () => {
     if (file) handleAvatarFile(file);
   };
 
-  if (isLoadingProfile || !profile) {
+  if (isLoadingProfile) {
     return (
       <DashboardLayout activeTab="Profile">
         <div className="flex items-center justify-center py-24 text-secondary">
           <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (loadError || !profile) {
+    return (
+      <DashboardLayout activeTab="Profile">
+        <div className="max-w-3xl">
+          <div className="p-4 bg-error-container text-error rounded-xl border border-error/20 text-sm flex items-start gap-2.5">
+            <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
+            <div className="space-y-2">
+              <p>Failed to load profile: {loadError || 'Server error'}</p>
+              <button
+                type="button"
+                onClick={loadProfile}
+                className="font-bold hover:underline cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
