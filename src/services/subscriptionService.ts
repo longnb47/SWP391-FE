@@ -80,6 +80,10 @@ export const subscriptionService = {
   async getRevenue(): Promise<ApiResponse<BackendResponse<PaymentRevenue>>> {
     return apiClient.get<BackendResponse<PaymentRevenue>>('/payments/revenue');
   },
+
+  async verifyVNPayPayment(queryString: string): Promise<ApiResponse<BackendResponse<{ transactionNo: string; status: string; alreadyProcessed: boolean }>>> {
+    return apiClient.get<BackendResponse<{ transactionNo: string; status: string; alreadyProcessed: boolean }>>(`/payments/vnpay-return${queryString}`);
+  },
 };
 
 export default subscriptionService;

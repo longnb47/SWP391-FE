@@ -7,6 +7,7 @@ import VerifyOtpPage from './pages/VerifyOtpPage'
 import OAuth2RedirectHandler from './pages/OAuth2RedirectHandler'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import SharedLinkPage from './pages/SharedLinkPage'
+import PaymentResultPage from './pages/PaymentResultPage'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/document/:id" element={<FileDetailPage />} />
         <Route path="/share/:token" element={<SharedLinkPage />} />
+        <Route path="/payment-result" element={<PaymentResultPage />} />
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
