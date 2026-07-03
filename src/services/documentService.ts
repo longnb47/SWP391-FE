@@ -32,6 +32,26 @@ export interface DocumentUrlResponse {
   contentType: string;
 }
 
+export type DocumentFilterSort = 'NEWEST' | 'OLDEST';
+
+export interface DocumentFilterParams {
+  tagIds?: number[];
+  contentType?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  sort?: DocumentFilterSort;
+  page?: number;
+  size?: number;
+}
+
+export interface DocumentPageResponse {
+  documents: DocumentUploadResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface DocumentShareLinkResponse {
   shareLinkId: number;
   documentId: number;
@@ -121,6 +141,18 @@ export const documentService = {
 
   async getStarredDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/starred');
+  },
+
+  async filterMyDocuments(params: DocumentFilterParams): Promise<ApiResponse<BackendResponse<DocumentPageResponse>>> {
+    const query = new URLSearchParams();
+    (params.tagIds || []).forEach((id) => query.append('tagIds', String(id)));
+    if (params.contentType) query.set('contentType', params.contentType);
+    if (params.createdFrom) query.set('createdFrom', params.createdFrom);
+    if (params.createdTo) query.set('createdTo', params.createdTo);
+    query.set('sort', params.sort || 'NEWEST');
+    query.set('page', String(params.page ?? 0));
+    query.set('size', String(params.size ?? 20));
+    return apiClient.get<BackendResponse<DocumentPageResponse>>(`/documents/filter?${query.toString()}`);
   },
 
   async starDocument(documentId: number, isStarred: boolean): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {

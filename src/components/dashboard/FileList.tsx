@@ -9,6 +9,8 @@ export interface FileListProps {
   onItemActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
   isTrash?: boolean;
   isCommunity?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export const FileList: React.FC<FileListProps> = ({
@@ -18,6 +20,8 @@ export const FileList: React.FC<FileListProps> = ({
   onItemActionClick,
   isTrash = false,
   isCommunity = false,
+  emptyTitle = 'No documents yet',
+  emptyDescription = 'Drag and drop files here, or use the Upload button to get started.',
 }) => {
   if (isLoading) {
     return (
@@ -37,9 +41,9 @@ export const FileList: React.FC<FileListProps> = ({
         <span className="material-symbols-outlined text-[48px] text-secondary/50 mb-3 select-none">
           folder_open
         </span>
-        <h4 className="font-title-lg text-on-surface font-semibold select-none">No documents yet</h4>
+        <h4 className="font-title-lg text-on-surface font-semibold select-none">{emptyTitle}</h4>
         <p className="font-body-md text-secondary mt-1 select-none">
-          Drag and drop files here, or use the Upload button to get started.
+          {emptyDescription}
         </p>
       </div>
     );

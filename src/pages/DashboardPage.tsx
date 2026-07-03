@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import FileList from '../components/dashboard/FileList';
 import UploadModal from '../components/dashboard/UploadModal';
 import { documentService } from '../services/documentService';
-import type { DocumentUploadResponse } from '../services/documentService';
+import type { DocumentUploadResponse, DocumentFilterSort } from '../services/documentService';
 import { tagService } from '../services/tagService';
+import type { TagResponse } from '../services/tagService';
 import { folderService } from '../services/folderService';
 import type { DocumentFolderResponse } from '../services/folderService';
 import CreateFolderModal from '../components/dashboard/CreateFolderModal';
@@ -13,6 +14,7 @@ import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import FriendsView from '../components/dashboard/FriendsView';
 import SettingsView from '../components/dashboard/SettingsView';
+import FilterPanel from '../components/dashboard/FilterPanel';
 import ShareModal from '../components/dashboard/ShareModal';
 import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
@@ -84,6 +86,28 @@ export const DashboardPage: React.FC = () => {
   // Folder chat state
   const [isFolderChatOpen, setIsFolderChatOpen] = useState(false);
 
+  // Document filter state
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isFilterModeActive, setIsFilterModeActive] = useState(false);
+  const [filterTagIds, setFilterTagIds] = useState<number[]>([]);
+  const [filterContentType, setFilterContentType] = useState('');
+  const [filterCreatedFrom, setFilterCreatedFrom] = useState('');
+  const [filterCreatedTo, setFilterCreatedTo] = useState('');
+  const [filterSort, setFilterSort] = useState<DocumentFilterSort>('NEWEST');
+  const [filterPage, setFilterPage] = useState(0);
+  const [filteredItems, setFilteredItems] = useState<DocumentWithTags[]>([]);
+  const [filterPageMeta, setFilterPageMeta] = useState<{ page: number; size: number; totalElements: number; totalPages: number } | null>(null);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+
+  const hasActiveFilters =
+    filterTagIds.length > 0 ||
+    filterContentType !== '' ||
+    filterCreatedFrom !== '' ||
+    filterCreatedTo !== '' ||
+    filterSort !== 'NEWEST';
+
   const isLoggedIn = !!localStorage.getItem('token');
 
   // Load all folders list for move modal
@@ -102,15 +126,84 @@ export const DashboardPage: React.FC = () => {
     if (isLoggedIn) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadAllFolders();
-      
+
       const currentUserId = localStorage.getItem('userId');
       const currentFullName = localStorage.getItem('userFullName');
       const currentEmail = localStorage.getItem('userEmail');
       if (currentUserId && (currentFullName || currentEmail)) {
         saveKnownUser(currentUserId, currentFullName, currentEmail);
       }
+
+      tagService.getTags().then((response) => {
+        if (response.data && response.data.success) {
+          setAvailableTags(response.data.data);
+        }
+      });
     }
   }, [isLoggedIn]);
+
+  // Close the filter panel on outside click
+  useEffect(() => {
+    if (!isFilterPanelOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(event.target as Node)) {
+        setIsFilterPanelOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isFilterPanelOpen]);
+
+  // Fetch filtered documents (debounced) whenever an active filter/sort/page changes
+  useEffect(() => {
+    if (!isFilterModeActive || !isLoggedIn) return;
+
+    const timeoutId = setTimeout(async () => {
+      setIsFilterLoading(true);
+      const response = await documentService.filterMyDocuments({
+        tagIds: filterTagIds,
+        contentType: filterContentType || undefined,
+        createdFrom: filterCreatedFrom ? `${filterCreatedFrom}T00:00:00Z` : undefined,
+        createdTo: filterCreatedTo ? `${filterCreatedTo}T23:59:59Z` : undefined,
+        sort: filterSort,
+        page: filterPage,
+        size: 20,
+      });
+
+      if (response.data && response.data.success) {
+        const pageData = response.data.data;
+        const docsWithTags = await Promise.all(
+          pageData.documents.map(async (doc) => {
+            try {
+              const tagResponse = await tagService.getDocumentTags(doc.documentId);
+              if (tagResponse.data && tagResponse.data.success) {
+                const tagNames = tagResponse.data.data.map((t) => t.name);
+                const tagDetails = tagResponse.data.data.map((t) => ({ name: t.name, color: t.color }));
+                return { ...doc, tags: tagNames, tagDetails };
+              }
+            } catch (e) {
+              console.error(`Failed to load tags for document ${doc.documentId}:`, e);
+            }
+            return { ...doc, tags: [], tagDetails: [] };
+          })
+        );
+        setFilteredItems(docsWithTags);
+        setFilterPageMeta({
+          page: pageData.page,
+          size: pageData.size,
+          totalElements: pageData.totalElements,
+          totalPages: pageData.totalPages,
+        });
+      } else {
+        alert(`Failed to load filtered documents: ${response.error || 'Server error'}`);
+        setFilteredItems([]);
+        setFilterPageMeta(null);
+      }
+      setIsFilterLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [isFilterModeActive, filterTagIds, filterContentType, filterCreatedFrom, filterCreatedTo, filterSort, filterPage, isLoggedIn]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -439,10 +532,57 @@ export const DashboardPage: React.FC = () => {
     formattedTotal: isLoggedIn && !isFallbackMode && apiFiles.length > 0 ? '2 GB' : isLoggedIn ? '100 GB' : '2 GB',
   };
 
+  // When document filters are active, they replace the tab-based file list with
+  // the caller's own filtered documents (the backend filter endpoint is scoped to
+  // "my documents", so folders and other tabs' content don't apply here).
+  const filterResultItems: FileItem[] = filteredItems.map(mapApiFileToFileItem);
+
   // Search filtering
-  const filteredFiles = fileItems.filter((file) =>
+  const filteredFiles = (isFilterModeActive ? filterResultItems : fileItems).filter((file) =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const exitFilterMode = () => {
+    setIsFilterModeActive(false);
+    setFilteredItems([]);
+    setFilterPageMeta(null);
+  };
+
+  const handleResetFilters = () => {
+    setFilterTagIds([]);
+    setFilterContentType('');
+    setFilterCreatedFrom('');
+    setFilterCreatedTo('');
+    setFilterSort('NEWEST');
+    setFilterPage(0);
+    exitFilterMode();
+  };
+
+  const applyFilterChange = () => {
+    setFilterPage(0);
+    setIsFilterModeActive(true);
+  };
+
+  const handleFilterTagsChange = (ids: number[]) => {
+    setFilterTagIds(ids);
+    applyFilterChange();
+  };
+  const handleFilterContentTypeChange = (value: string) => {
+    setFilterContentType(value);
+    applyFilterChange();
+  };
+  const handleFilterCreatedFromChange = (value: string) => {
+    setFilterCreatedFrom(value);
+    applyFilterChange();
+  };
+  const handleFilterCreatedToChange = (value: string) => {
+    setFilterCreatedTo(value);
+    applyFilterChange();
+  };
+  const handleFilterSortChange = (value: DocumentFilterSort) => {
+    setFilterSort(value);
+    applyFilterChange();
+  };
 
   // Trigger S3 File Upload Modal
   const handleTabChange = (tabName: string) => {
@@ -450,6 +590,7 @@ export const DashboardPage: React.FC = () => {
     setCurrentFolderName(null);
     setActiveTab(tabName);
     setIsFolderChatOpen(false);
+    exitFilterMode();
   };
 
   const handleUploadFile = () => {
@@ -763,9 +904,11 @@ export const DashboardPage: React.FC = () => {
           <div className="font-headline-lg text-headline-lg font-bold text-on-surface select-none">
             {searchQuery ? (
               `Search Results for "${searchQuery}"`
+            ) : isFilterModeActive ? (
+              'Filtered results'
             ) : (
               <div className="flex items-center gap-1.5">
-                <span 
+                <span
                   onClick={() => {
                     setCurrentFolderId(null);
                     setCurrentFolderName(null);
@@ -822,12 +965,37 @@ export const DashboardPage: React.FC = () => {
               <span className="material-symbols-outlined text-[20px]">view_list</span>
             </button>
             
-            <button 
-              onClick={() => alert('Filter files clicked!')}
-              className="p-2 text-secondary hover:bg-surface-container-high rounded-lg transition-colors border border-transparent hover:border-outline-variant ml-2 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">filter_list</span>
-            </button>
+            <div ref={filterPanelRef} className="relative">
+              <button
+                onClick={() => setIsFilterPanelOpen((open) => !open)}
+                className={`p-2 rounded-lg transition-colors border cursor-pointer ml-2 ${
+                  isFilterModeActive
+                    ? 'text-primary bg-primary-fixed/30 border-primary/20'
+                    : 'text-secondary hover:bg-surface-container-high border-transparent hover:border-outline-variant'
+                }`}
+                title="Filter documents"
+              >
+                <span className="material-symbols-outlined text-[20px]">filter_list</span>
+              </button>
+
+              {isFilterPanelOpen && (
+                <FilterPanel
+                  availableTags={availableTags}
+                  selectedTagIds={filterTagIds}
+                  onTagsChange={handleFilterTagsChange}
+                  contentType={filterContentType}
+                  onContentTypeChange={handleFilterContentTypeChange}
+                  createdFrom={filterCreatedFrom}
+                  onCreatedFromChange={handleFilterCreatedFromChange}
+                  createdTo={filterCreatedTo}
+                  onCreatedToChange={handleFilterCreatedToChange}
+                  sort={filterSort}
+                  onSortChange={handleFilterSortChange}
+                  onReset={handleResetFilters}
+                  hasActiveFilters={hasActiveFilters}
+                />
+              )}
+            </div>
           </div>
         </div>
 
@@ -837,11 +1005,13 @@ export const DashboardPage: React.FC = () => {
             {viewMode === 'list' ? (
               <FileList
                 items={filteredFiles}
-                isLoading={isLoadingFiles}
+                isLoading={isFilterModeActive ? isFilterLoading : isLoadingFiles}
                 onItemClick={handleItemClick}
                 onItemActionClick={handleItemActionClick}
                 isTrash={activeTab === 'Trash'}
                 isCommunity={activeTab === 'Community'}
+                emptyTitle={isFilterModeActive ? 'No documents match your filters' : undefined}
+                emptyDescription={isFilterModeActive ? 'Try adjusting or resetting your filters.' : undefined}
               />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -921,6 +1091,32 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {isFilterModeActive && filterPageMeta && filterPageMeta.totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 select-none">
+                <span className="font-body-md text-secondary text-sm">
+                  Page {filterPageMeta.page + 1} of {filterPageMeta.totalPages} ({filterPageMeta.totalElements} documents)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={filterPage === 0}
+                    onClick={() => setFilterPage((p) => Math.max(0, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={filterPage + 1 >= filterPageMeta.totalPages}
+                    onClick={() => setFilterPage((p) => p + 1)}
+                    className="px-3 py-1.5 rounded-lg border border-outline-variant text-secondary hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>
