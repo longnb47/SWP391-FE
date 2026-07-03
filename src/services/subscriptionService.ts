@@ -45,32 +45,32 @@ export interface PurchaseResponse {
   status: string;
 }
 
+export interface SystemOrder {
+  id: number;
+  userName: string;
+  email: string;
+  planName: string;
+  amount: number;
+  paymentMethod: string;
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  paidAt: string;
+}
+
 export const subscriptionService = {
   async getSubscriptionPlans(): Promise<ApiResponse<BackendResponse<SubscriptionPlan[]>>> {
     return apiClient.get<BackendResponse<SubscriptionPlan[]>>('/subscription-plans');
   },
 
-  async getSubscriptionPlanDetail(id: number): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
-    return apiClient.get<BackendResponse<SubscriptionPlan>>(`/subscription-plans/${id}`);
-  },
-
-  async createSubscriptionPlan(plan: Omit<SubscriptionPlan, 'id' | 'active'>): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
-    return apiClient.post<BackendResponse<SubscriptionPlan>>('/subscription-plans', plan);
-  },
-
-  async updateSubscriptionPlan(id: number, plan: Omit<SubscriptionPlan, 'id' | 'active'>): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
-    return apiClient.put<BackendResponse<SubscriptionPlan>>(`/subscription-plans/${id}`, plan);
+  async createSubscriptionPlan(planData: Omit<SubscriptionPlan, 'id' | 'active'>): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
+    return apiClient.post<BackendResponse<SubscriptionPlan>>('/subscription-plans', planData);
   },
 
   async deleteSubscriptionPlan(id: number): Promise<ApiResponse<BackendResponse<null>>> {
     return apiClient.delete<BackendResponse<null>>(`/subscription-plans/${id}`);
   },
 
-  async purchasePlan(planId: number): Promise<ApiResponse<BackendResponse<PurchaseResponse>>> {
-    return apiClient.post<BackendResponse<PurchaseResponse>>('/payments/purchase', {
-      planId,
-      paymentMethod: 'VNPAY',
-    });
+  async purchasePlan(planId: number): Promise<ApiResponse<BackendResponse<{ paymentUrl: string }>>> {
+    return apiClient.post<BackendResponse<{ paymentUrl: string }>>('/payments/purchase', { planId });
   },
 
   async getMySubscription(): Promise<ApiResponse<BackendResponse<UserSubscription>>> {
@@ -83,6 +83,10 @@ export const subscriptionService = {
 
   async verifyVNPayPayment(queryString: string): Promise<ApiResponse<BackendResponse<{ transactionNo: string; status: string; alreadyProcessed: boolean }>>> {
     return apiClient.get<BackendResponse<{ transactionNo: string; status: string; alreadyProcessed: boolean }>>(`/payments/vnpay-return${queryString}`);
+  },
+
+  async getAllSystemOrders(): Promise<ApiResponse<BackendResponse<SystemOrder[]>>> {
+    return apiClient.get<BackendResponse<SystemOrder[]>>('/admin/payments');
   },
 };
 
