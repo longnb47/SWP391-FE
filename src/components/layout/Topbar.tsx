@@ -8,7 +8,6 @@ export interface TopbarProps {
   onHelpClick?: () => void;
   onUpgradeClick?: () => void;
   onProfileClick?: () => void;
-  onSettingsClick?: () => void;
   onLogoutClick?: () => void;
   isLoggedIn?: boolean;
   onLoginClick?: () => void;
@@ -21,7 +20,6 @@ export const Topbar: React.FC<TopbarProps> = ({
   onHelpClick,
   onUpgradeClick,
   onProfileClick,
-  onSettingsClick,
   onLogoutClick,
   isLoggedIn = false,
   onLoginClick,
@@ -116,14 +114,6 @@ export const Topbar: React.FC<TopbarProps> = ({
                 >
                   <span className="material-symbols-outlined text-[20px] text-secondary">person</span>
                   Profile
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMenuItemClick(onSettingsClick)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-body-md text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-secondary">settings</span>
-                  Settings
                 </button>
                 <div className="my-1 border-t border-outline-variant/50" />
                 <button

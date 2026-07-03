@@ -82,7 +82,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
           onProfileClick={() => navigate('/profile')}
-          onSettingsClick={() => navigate('/settings')}
           onLogoutClick={handleLogout}
         />
 

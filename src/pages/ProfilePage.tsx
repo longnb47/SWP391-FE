@@ -16,6 +16,7 @@ export const ProfilePage: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -88,10 +89,19 @@ export const ProfilePage: React.FC = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
+      setIsChangingPassword(false);
     } else {
       setPasswordError(response.error || 'Failed to change password.');
     }
     setIsSavingPassword(false);
+  };
+
+  const handleCancelPasswordChange = () => {
+    setIsChangingPassword(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setPasswordError(null);
   };
 
   const handleAvatarFile = async (file: File) => {
@@ -247,59 +257,84 @@ export const ProfilePage: React.FC = () => {
         </form>
 
         {/* Change password */}
-        <form onSubmit={handleChangePassword} className="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-6 space-y-4">
-          <h2 className="font-title-lg text-title-lg font-bold text-on-surface">Change password</h2>
+        <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-title-lg text-title-lg font-bold text-on-surface">Password</h2>
+            {!isChangingPassword && (
+              <button
+                type="button"
+                onClick={() => setIsChangingPassword(true)}
+                className="text-primary font-bold text-body-md hover:underline cursor-pointer"
+              >
+                Change password
+              </button>
+            )}
+          </div>
 
-          {passwordError && (
-            <div className="p-4 bg-error-container text-error rounded-xl border border-error/20 text-sm flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
-              <span>{passwordError}</span>
-            </div>
+          {isChangingPassword && (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {passwordError && (
+                <div className="p-4 bg-error-container text-error rounded-xl border border-error/20 text-sm flex items-start gap-2.5">
+                  <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="font-label-md text-on-surface-variant text-xs font-semibold block">Current password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={isSavingPassword}
+                  className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-label-md text-on-surface-variant text-xs font-semibold block">New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isSavingPassword}
+                  minLength={8}
+                  className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-label-md text-on-surface-variant text-xs font-semibold block">Confirm new password</label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  disabled={isSavingPassword}
+                  minLength={8}
+                  className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={isSavingPassword}
+                  className="h-11 px-6 bg-primary text-on-primary font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingPassword ? 'Saving...' : 'Change password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPasswordChange}
+                  disabled={isSavingPassword}
+                  className="h-11 px-6 text-secondary font-bold hover:text-on-surface hover:bg-surface-variant rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           )}
-
-          <div className="space-y-1.5">
-            <label className="font-label-md text-on-surface-variant text-xs font-semibold block">Current password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              disabled={isSavingPassword}
-              className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="font-label-md text-on-surface-variant text-xs font-semibold block">New password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={isSavingPassword}
-              minLength={8}
-              className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="font-label-md text-on-surface-variant text-xs font-semibold block">Confirm new password</label>
-            <input
-              type="password"
-              value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
-              disabled={isSavingPassword}
-              minLength={8}
-              className="w-full h-11 px-4 bg-surface-container-high focus:bg-surface border border-transparent focus:border-outline-variant rounded-xl text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSavingPassword}
-            className="h-11 px-6 bg-primary text-on-primary font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-          >
-            {isSavingPassword ? 'Saving...' : 'Change password'}
-          </button>
-        </form>
+        </div>
       </div>
     </DashboardLayout>
   );
