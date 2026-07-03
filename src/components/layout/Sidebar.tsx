@@ -203,8 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop Overlay */}
-          <div 
-            onClick={onClose} 
+          <div
+            onClick={onClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
           />
           {/* Sliding Panel */}

@@ -38,6 +38,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     setIsMobileSidebarOpen(false);
   };
 
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm('Are you sure you want to log out?');
+    if (!confirmLogout) return;
+
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (err) {
+        console.error('Logout error on backend:', err);
+      }
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userId');
+    window.location.href = '/login';
+  };
+
   return (
     <div className="bg-background text-on-background font-body-md min-h-screen flex overflow-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
       {/* Sidebar Navigation (Static on Desktop, Drawer on Mobile) */}
@@ -62,24 +81,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onUpgradeClick={() => alert('Upgrade modal clicked!')}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
-          onProfileClick={async () => {
-            const confirmLogout = window.confirm('Are you sure you want to log out?');
-            if (confirmLogout) {
-              const refreshToken = localStorage.getItem('refreshToken');
-              if (refreshToken) {
-                try {
-                  await authService.logout(refreshToken);
-                } catch (err) {
-                  console.error('Logout error on backend:', err);
-                }
-              }
-              localStorage.removeItem('token');
-              localStorage.removeItem('refreshToken');
-              localStorage.removeItem('userEmail');
-              localStorage.removeItem('userId');
-              window.location.href = '/login';
-            }
-          }}
+          onProfileClick={() => navigate('/profile')}
+          onSettingsClick={() => navigate('/settings')}
+          onLogoutClick={handleLogout}
         />
 
         {/* Scrollable Main Canvas */}
