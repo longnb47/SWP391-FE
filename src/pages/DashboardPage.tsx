@@ -12,6 +12,7 @@ import CreateFolderModal from '../components/dashboard/CreateFolderModal';
 import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import FriendsView from '../components/dashboard/FriendsView';
+import SettingsView from '../components/dashboard/SettingsView';
 import ShareModal from '../components/dashboard/ShareModal';
 import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
@@ -310,7 +311,7 @@ export const DashboardPage: React.FC = () => {
         );
         setApiFiles(docsWithTags);
         setIsFallbackMode(false);
-      } else if (activeTab === 'Friends') {
+      } else if (activeTab === 'Friends' || activeTab === 'Settings') {
         setApiFiles([]);
         setApiFolders([]);
         setIsLoadingFiles(false);
@@ -752,6 +753,8 @@ export const DashboardPage: React.FC = () => {
     >
       {activeTab === 'Friends' ? (
         <FriendsView />
+      ) : activeTab === 'Settings' ? (
+        <SettingsView />
       ) : (
         /* Main File List / Grid Section */
         <section className="space-y-4">

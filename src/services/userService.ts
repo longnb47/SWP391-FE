@@ -25,6 +25,24 @@ export interface ChangePasswordRequest {
   confirmNewPassword: string;
 }
 
+export type Theme = 'LIGHT' | 'DARK' | 'SYSTEM';
+export type Visibility = 'PUBLIC' | 'FRIENDS_ONLY' | 'PRIVATE';
+
+export interface UserSettingsResponse {
+  theme: Theme;
+  profileVisibility: Visibility;
+  allowFriendRequests: boolean;
+  showOnlineStatus: boolean;
+  updatedAt: string;
+}
+
+export interface UpdateUserSettingsRequest {
+  theme?: Theme;
+  profileVisibility?: Visibility;
+  allowFriendRequests?: boolean;
+  showOnlineStatus?: boolean;
+}
+
 export const userService = {
   async getMyProfile(): Promise<ApiResponse<BackendResponse<UserProfileResponse>>> {
     return apiClient.get<BackendResponse<UserProfileResponse>>('/users/me');
@@ -48,6 +66,17 @@ export const userService = {
     const formData = new FormData();
     formData.append('file', file);
     return apiClient.post<BackendResponse<UserProfileResponse>>('/users/me/avatar', formData);
+  },
+
+  async getMySettings(): Promise<ApiResponse<BackendResponse<UserSettingsResponse>>> {
+    return apiClient.get<BackendResponse<UserSettingsResponse>>('/users/me/settings');
+  },
+
+  async updateMySettings(request: UpdateUserSettingsRequest): Promise<ApiResponse<BackendResponse<UserSettingsResponse>>> {
+    return apiClient.request<BackendResponse<UserSettingsResponse>>('/users/me/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(request),
+    });
   },
 };
 
