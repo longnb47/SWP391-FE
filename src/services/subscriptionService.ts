@@ -74,7 +74,7 @@ export const subscriptionService = {
   },
 
   async purchasePlan(planId: number): Promise<ApiResponse<BackendResponse<{ paymentUrl: string }>>> {
-    return apiClient.post<BackendResponse<{ paymentUrl: string }>>('/payments/purchase', { planId });
+    return apiClient.post<BackendResponse<{ paymentUrl: string }>>('/payments/purchase', { planId, paymentMethod: 'VNPAY' });
   },
 
   async getMySubscription(): Promise<ApiResponse<BackendResponse<UserSubscription>>> {
