@@ -4,6 +4,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
 import { documentService } from '../services/documentService';
+import subscriptionService from '../services/subscriptionService';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
@@ -16,20 +17,9 @@ const formatBytes = (bytes: number, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-const calculateStorageUsage = (files: { fileSize: number }[], isLoggedIn: boolean) => {
-  const isFallbackMode = files.length === 0;
-  const usedBytes = isLoggedIn && !isFallbackMode
-    ? files.reduce((sum, f) => sum + f.fileSize, 0)
-    : isLoggedIn
-    ? 15 * 1024 * 1024 * 1024 // 15GB mock default
-    : 0;
-  
-  const totalBytes = isLoggedIn && !isFallbackMode
-    ? 2 * 1024 * 1024 * 1024 // 2GB Free tier limit
-    : isLoggedIn
-    ? 100 * 1024 * 1024 * 1024
-    : 2 * 1024 * 1024 * 1024;
-
+const calculateStorageUsage = (myFilesSize: number, sharedFilesSize: number, storageLimitGb: number, isLoggedIn: boolean) => {
+  const usedBytes = isLoggedIn ? myFilesSize + sharedFilesSize : 0;
+  const totalBytes = isLoggedIn ? storageLimitGb * 1024 * 1024 * 1024 : 2 * 1024 * 1024 * 1024;
   const usedPercentage = Math.min(100, Math.round((usedBytes / totalBytes) * 100));
   
   return {
@@ -37,7 +27,7 @@ const calculateStorageUsage = (files: { fileSize: number }[], isLoggedIn: boolea
     totalBytes,
     usedPercentage,
     formattedUsed: formatBytes(usedBytes),
-    formattedTotal: isLoggedIn && !isFallbackMode ? '2 GB' : isLoggedIn ? '100 GB' : '2 GB',
+    formattedTotal: `${isLoggedIn ? storageLimitGb : 2} GB`,
   };
 };
 
@@ -84,11 +74,29 @@ export const FileDetailPage: React.FC = () => {
       
       // Load user documents to dynamically calculate sidebar storage usage
       try {
-        const listResponse = await documentService.getMyDocuments();
-        if (listResponse.data && listResponse.data.success) {
-          const computedStorage = calculateStorageUsage(listResponse.data.data, true);
-          setStorage(computedStorage);
+        const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
+          subscriptionService.getMySubscription().catch(() => null),
+          documentService.getMyDocuments().catch(() => null),
+          documentService.getSharedWithMeDocuments().catch(() => null),
+        ]);
+
+        let limitGb = 2;
+        if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
+          limitGb = subRes.data.data.storageLimitGb || 2;
         }
+
+        let myTotal = 0;
+        if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
+          myTotal = myDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+        }
+
+        let sharedTotal = 0;
+        if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
+          sharedTotal = sharedDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+        }
+
+        const computedStorage = calculateStorageUsage(myTotal, sharedTotal, limitGb, true);
+        setStorage(computedStorage);
       } catch (e) {
         console.error('Failed to load storage details:', e);
       }

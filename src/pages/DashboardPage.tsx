@@ -9,6 +9,7 @@ import { tagService } from '../services/tagService';
 import type { TagResponse } from '../services/tagService';
 import { folderService } from '../services/folderService';
 import type { DocumentFolderResponse } from '../services/folderService';
+import subscriptionService from '../services/subscriptionService';
 import CreateFolderModal from '../components/dashboard/CreateFolderModal';
 import RenameModal from '../components/dashboard/RenameModal';
 import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
@@ -113,6 +114,43 @@ export const DashboardPage: React.FC = () => {
 
   const isLoggedIn = !!localStorage.getItem('token');
 
+  const [storageLimitGb, setStorageLimitGb] = useState<number>(2);
+  const [allMyFilesSize, setAllMyFilesSize] = useState<number>(0);
+  const [allSharedFilesSize, setAllSharedFilesSize] = useState<number>(0);
+
+  const fetchStorageData = async () => {
+    if (!isLoggedIn) return;
+    try {
+      const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
+        subscriptionService.getMySubscription().catch(() => null),
+        documentService.getMyDocuments().catch(() => null),
+        documentService.getSharedWithMeDocuments().catch(() => null),
+      ]);
+
+      if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
+        setStorageLimitGb(subRes.data.data.storageLimitGb || 2);
+      } else {
+        setStorageLimitGb(2);
+      }
+
+      if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
+        const myTotal = myDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+        setAllMyFilesSize(myTotal);
+      } else {
+        setAllMyFilesSize(0);
+      }
+
+      if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
+        const sharedTotal = sharedDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+        setAllSharedFilesSize(sharedTotal);
+      } else {
+        setAllSharedFilesSize(0);
+      }
+    } catch (e) {
+      console.error('Error fetching storage details:', e);
+    }
+  };
+
   // Load all folders list for move modal
   const loadAllFolders = async () => {
     try {
@@ -129,6 +167,7 @@ export const DashboardPage: React.FC = () => {
     if (isLoggedIn) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadAllFolders();
+      fetchStorageData();
 
       const currentUserId = localStorage.getItem('userId');
       const currentFullName = localStorage.getItem('userFullName');
@@ -143,6 +182,7 @@ export const DashboardPage: React.FC = () => {
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
   // Close the filter panel on outside click
@@ -224,6 +264,7 @@ export const DashboardPage: React.FC = () => {
       return;
     }
     setIsLoadingFiles(true);
+    fetchStorageData();
     
     try {
       if (currentFolderId !== null) {
@@ -514,14 +555,14 @@ export const DashboardPage: React.FC = () => {
 
 
   // Calculate dynamic storage usage metrics
-  const usedBytes = isLoggedIn && !isFallbackMode && apiFiles.length > 0
-    ? apiFiles.reduce((sum, f) => sum + f.fileSize, 0)
+  const usedBytes = isLoggedIn && !isFallbackMode
+    ? allMyFilesSize + allSharedFilesSize
     : isLoggedIn
     ? 15 * 1024 * 1024 * 1024 // 15GB mock default
     : 0; // 0 Bytes for guests
   
-  const totalBytes = isLoggedIn && !isFallbackMode && apiFiles.length > 0
-    ? 2 * 1024 * 1024 * 1024 // 2GB Free tier limit
+  const totalBytes = isLoggedIn && !isFallbackMode
+    ? storageLimitGb * 1024 * 1024 * 1024
     : isLoggedIn
     ? 100 * 1024 * 1024 * 1024 // 100GB mock default
     : 2 * 1024 * 1024 * 1024; // 2GB for guests
@@ -532,7 +573,7 @@ export const DashboardPage: React.FC = () => {
     totalBytes,
     usedPercentage,
     formattedUsed: formatBytes(usedBytes),
-    formattedTotal: isLoggedIn && !isFallbackMode && apiFiles.length > 0 ? '2 GB' : isLoggedIn ? '100 GB' : '2 GB',
+    formattedTotal: `${isLoggedIn && !isFallbackMode ? storageLimitGb : isLoggedIn ? 100 : 2} GB`,
   };
 
   // When document filters are active, they replace the tab-based file list with

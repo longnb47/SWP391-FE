@@ -6,8 +6,19 @@ import SubscriptionModal from '../components/dashboard/SubscriptionModal';
 import BillingModal from '../components/dashboard/BillingModal';
 import { authService } from '../services/authService';
 import subscriptionService from '../services/subscriptionService';
+import { documentService } from '../services/documentService';
+import type { DocumentUploadResponse } from '../services/documentService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
+
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
 
 export interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -35,24 +46,53 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [activePlanName, setActivePlanName] = useState<string>('');
+  const [internalStorage, setInternalStorage] = useState<StorageUsage | undefined>(undefined);
   const isLoggedIn = !!localStorage.getItem('token');
   const { avatarUrl } = useUserProfile();
 
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    const fetchSubscription = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await subscriptionService.getMySubscription();
-        if (response.data && response.data.success && response.data.data) {
-          setActivePlanName(response.data.data.planName || 'FREE');
+        const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
+          subscriptionService.getMySubscription().catch(() => null),
+          documentService.getMyDocuments().catch(() => null),
+          documentService.getSharedWithMeDocuments().catch(() => null),
+        ]);
+
+        let limitGb = 2;
+        if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
+          setActivePlanName(subRes.data.data.planName || 'FREE');
+          limitGb = subRes.data.data.storageLimitGb || 2;
+        } else {
+          setActivePlanName('FREE');
         }
+
+        let totalUsed = 0;
+        if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
+          totalUsed += myDocsRes.data.data.reduce((sum: number, f: DocumentUploadResponse) => sum + (f.fileSize || 0), 0);
+        }
+        if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
+          totalUsed += sharedDocsRes.data.data.reduce((sum: number, f: DocumentUploadResponse) => sum + (f.fileSize || 0), 0);
+        }
+
+        const totalBytes = limitGb * 1024 * 1024 * 1024;
+        const usedPercentage = Math.min(100, Math.round((totalUsed / totalBytes) * 100));
+
+        setInternalStorage({
+          usedBytes: totalUsed,
+          totalBytes,
+          usedPercentage,
+          formattedUsed: formatBytes(totalUsed),
+          formattedTotal: `${limitGb} GB`
+        });
       } catch (err) {
-        console.error('Error fetching user subscription:', err);
+        console.error('Error fetching dashboard storage details:', err);
       }
     };
 
-    fetchSubscription();
+    fetchDashboardData();
   }, [isLoggedIn]);
 
   const handleMobileMenuToggle = () => {
@@ -92,7 +132,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onTabChange={onTabChange}
         onUploadClick={onUploadClick}
         onNewFolderClick={onNewFolderClick}
-        storage={storage}
+        storage={storage || internalStorage}
       />
 
       {/* Main Content Area */}
