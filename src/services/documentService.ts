@@ -1,5 +1,5 @@
-import { apiClient } from './apiClient';
-import type { ApiResponse } from './apiClient';
+import { apiClient } from "./apiClient";
+import type { ApiResponse } from "./apiClient";
 
 export interface DocumentUploadResponse {
   documentId: number;
@@ -12,7 +12,7 @@ export interface DocumentUploadResponse {
   isPublic: boolean;
   isDeleted: boolean;
   isStarred: boolean;
-  status: 'UPLOADED' | 'PARSING' | 'INDEXING' | 'READY' | 'FAILED';
+  status: "UPLOADED" | "PARSING" | "INDEXING" | "READY" | "FAILED";
   uploadedAt: string;
   deletedAt: string | null;
 }
@@ -73,74 +73,125 @@ export interface DocumentShareResponse {
 }
 
 export const documentService = {
-  async getMyDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/my');
-  },
-
-  async uploadDocument(file: File, isPublic = false): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('isPublic', String(isPublic));
-    return apiClient.post<BackendResponse<DocumentUploadResponse>>('/documents/upload', formData);
-  },
-
-  async getDocumentDetail(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/${documentId}`);
-  },
-
-  async deleteDocument(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.delete<BackendResponse<DocumentUploadResponse>>(`/documents/${documentId}`);
-  },
-
-  async getTrashDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/trash');
-  },
-
-  async restoreDocument(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.post<BackendResponse<DocumentUploadResponse>>(`/documents/${documentId}/restore`);
-  },
-
-  async deleteDocumentPermanently(documentId: number): Promise<ApiResponse<BackendResponse<null>>> {
-    return apiClient.delete<BackendResponse<null>>(`/documents/${documentId}/permanent`);
-  },
-
-  async updateDocumentVisibility(documentId: number, isPublic: boolean): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.request<BackendResponse<DocumentUploadResponse>>(
-      `/documents/${documentId}/visibility?isPublic=${isPublic}`,
-      { method: 'PATCH' }
+  async getMyDocuments(): Promise<
+    ApiResponse<BackendResponse<DocumentUploadResponse[]>>
+  > {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(
+      "/documents/my",
     );
   },
 
-  async getDocumentPreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/${documentId}/preview-url`);
+  async uploadDocument(
+    file: File,
+    isPublic = false,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("isPublic", String(isPublic));
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(
+      "/documents/upload",
+      formData,
+    );
   },
 
-  async getDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/${documentId}/download-url`);
+  async getDocumentDetail(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}`,
+    );
   },
 
-  async renameDocument(documentId: number, name: string): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+  async deleteDocument(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.delete<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}`,
+    );
+  },
+
+  async getTrashDocuments(): Promise<
+    ApiResponse<BackendResponse<DocumentUploadResponse[]>>
+  > {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(
+      "/documents/trash",
+    );
+  },
+
+  async restoreDocument(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}/restore`,
+    );
+  },
+
+  async deleteDocumentPermanently(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(
+      `/documents/${documentId}/permanent`,
+    );
+  },
+
+  async updateDocumentVisibility(
+    documentId: number,
+    isPublic: boolean,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.request<BackendResponse<DocumentUploadResponse>>(
+      `/documents/${documentId}/visibility?isPublic=${isPublic}`,
+      { method: "PATCH" },
+    );
+  },
+
+  async getDocumentPreviewUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/${documentId}/preview-url`,
+    );
+  },
+
+  async getDocumentDownloadUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/${documentId}/download-url`,
+    );
+  },
+
+  async renameDocument(
+    documentId: number,
+    name: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
     return apiClient.request<BackendResponse<DocumentUploadResponse>>(
       `/documents/${documentId}/rename`,
       {
-        method: 'PATCH',
-        body: JSON.stringify({ originalFileName: name })
-      }
+        method: "PATCH",
+        body: JSON.stringify({ originalFileName: name }),
+      },
     );
   },
 
-  async moveDocumentToFolder(documentId: number, folderId: number | null): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+  async moveDocumentToFolder(
+    documentId: number,
+    folderId: number | null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
     return apiClient.request<BackendResponse<DocumentUploadResponse>>(
       `/documents/${documentId}/folder`,
       {
-        method: 'PATCH',
-        body: JSON.stringify({ folderId })
-      }
+        method: "PATCH",
+        body: JSON.stringify({ folderId }),
+      },
     );
   },
 
-  async getStarredDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/starred');
+  async getStarredDocuments(): Promise<
+    ApiResponse<BackendResponse<DocumentUploadResponse[]>>
+  > {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(
+      "/documents/starred",
+    );
   },
 
   async filterMyDocuments(params: DocumentFilterParams): Promise<ApiResponse<BackendResponse<DocumentPageResponse>>> {
@@ -155,73 +206,139 @@ export const documentService = {
     return apiClient.get<BackendResponse<DocumentPageResponse>>(`/documents/filter?${query.toString()}`);
   },
 
-  async starDocument(documentId: number, isStarred: boolean): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+  async starDocument(
+    documentId: number,
+    isStarred: boolean,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
     return apiClient.request<BackendResponse<DocumentUploadResponse>>(
       `/documents/${documentId}/star?isStarred=${isStarred}`,
-      { method: 'PATCH' }
+      { method: "PATCH" },
     );
   },
 
-  async getPublicDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/public');
+  async getPublicDocuments(): Promise<
+    ApiResponse<BackendResponse<DocumentUploadResponse[]>>
+  > {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(
+      "/documents/public",
+    );
   },
 
-  async getPublicDocumentDetail(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/public/${documentId}`);
+  async getPublicDocumentDetail(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(
+      `/documents/public/${documentId}`,
+    );
   },
 
-  async getPublicDocumentPreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/public/${documentId}/preview-url`);
+  async getPublicDocumentPreviewUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/public/${documentId}/preview-url`,
+    );
   },
 
-  async getPublicDocumentDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/public/${documentId}/download-url`);
+  async getPublicDocumentDownloadUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/public/${documentId}/download-url`,
+    );
   },
 
   // Document public link share APIs
-  async createShareLink(documentId: number): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
-    return apiClient.post<BackendResponse<DocumentShareLinkResponse>>(`/documents/${documentId}/share-link`);
+  async createShareLink(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareLinkResponse>>(
+      `/documents/${documentId}/share-link`,
+    );
   },
 
-  async disableShareLink(documentId: number): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
-    return apiClient.delete<BackendResponse<DocumentShareLinkResponse>>(`/documents/${documentId}/share-link`);
+  async disableShareLink(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareLinkResponse>>> {
+    return apiClient.delete<BackendResponse<DocumentShareLinkResponse>>(
+      `/documents/${documentId}/share-link`,
+    );
   },
 
-  async getSharedDocumentByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/share-link/${token}`);
+  async getSharedDocumentByLink(
+    token: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(
+      `/documents/share-link/${token}`,
+    );
   },
 
-  async getSharedDocumentPreviewUrlByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/share-link/${token}/preview-url`);
+  async getSharedDocumentPreviewUrlByLink(
+    token: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/share-link/${token}/preview-url`,
+    );
   },
 
-  async getSharedDocumentDownloadUrlByLink(token: string): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/share-link/${token}/download-url`);
+  async getSharedDocumentDownloadUrlByLink(
+    token: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/share-link/${token}/download-url`,
+    );
   },
 
   // Direct user sharing APIs
-  async shareDocumentWithUser(documentId: number, email: string): Promise<ApiResponse<BackendResponse<DocumentShareResponse>>> {
-    return apiClient.post<BackendResponse<DocumentShareResponse>>(`/documents/${documentId}/shares/users`, { email });
+  async shareDocumentWithUser(
+    documentId: number,
+    email: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareResponse>>(
+      `/documents/${documentId}/shares/users`,
+      { email },
+    );
   },
 
-  async removeUserShare(documentId: number, userId: number): Promise<ApiResponse<BackendResponse<null>>> {
-    return apiClient.delete<BackendResponse<null>>(`/documents/${documentId}/shares/users/${userId}`);
+  async removeUserShare(
+    documentId: number,
+    userId: number,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(
+      `/documents/${documentId}/shares/users/${userId}`,
+    );
   },
 
-  async getSharedWithMeDocuments(): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>('/documents/shared-with-me');
+  async getSharedWithMeDocuments(): Promise<
+    ApiResponse<BackendResponse<DocumentUploadResponse[]>>
+  > {
+    return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(
+      "/documents/shared-with-me",
+    );
   },
 
-  async getSharedWithMeDocumentDetail(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUploadResponse>>(`/documents/shared-with-me/${documentId}`);
+  async getSharedWithMeDocumentDetail(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUploadResponse>>(
+      `/documents/shared-with-me/${documentId}`,
+    );
   },
 
-  async getSharedWithMePreviewUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/shared-with-me/${documentId}/preview-url`);
+  async getSharedWithMePreviewUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/shared-with-me/${documentId}/preview-url`,
+    );
   },
 
-  async getSharedWithMeDownloadUrl(documentId: number): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
-    return apiClient.get<BackendResponse<DocumentUrlResponse>>(`/documents/shared-with-me/${documentId}/download-url`);
-  }
+  async getSharedWithMeDownloadUrl(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
+    return apiClient.get<BackendResponse<DocumentUrlResponse>>(
+      `/documents/shared-with-me/${documentId}/download-url`,
+    );
+  },
 };
 export default documentService;

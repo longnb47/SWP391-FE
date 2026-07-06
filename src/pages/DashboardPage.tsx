@@ -15,7 +15,10 @@ import MoveToFolderModal from '../components/dashboard/MoveToFolderModal';
 import FriendsView from '../components/dashboard/FriendsView';
 import SettingsView from '../components/dashboard/SettingsView';
 import FilterPanel from '../components/dashboard/FilterPanel';
+import AiAssistantConfigView from '../components/dashboard/AiAssistantConfigView';
+import SmartChatView from '../components/dashboard/SmartChatView';
 import ShareModal from '../components/dashboard/ShareModal';
+import AdminPlansView from '../components/dashboard/AdminPlansView';
 import DocumentChat from '../components/document/DocumentChat';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import { saveKnownUser, resolveOwnerEmail } from '../lib/userHelpers';
@@ -896,6 +899,12 @@ export const DashboardPage: React.FC = () => {
         <FriendsView />
       ) : activeTab === 'Settings' ? (
         <SettingsView />
+      ) : activeTab === 'AI Assistant' ? (
+        <AiAssistantConfigView />
+      ) : activeTab === 'Smart Chat' ? (
+        <SmartChatView />
+      ) : activeTab === 'Admin' ? (
+        <AdminPlansView />
       ) : (
         /* Main File List / Grid Section */
         <section className="space-y-4">
@@ -1122,7 +1131,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {isFolderChatOpen && currentFolderId !== null && (
-            <div className="w-[380px] shrink-0 bg-surface border border-surface-variant rounded-2xl overflow-hidden shadow-lg h-[calc(100vh-230px)] min-h-[400px] animate-in slide-in-from-right duration-250">
+            <div className="w-[480px] shrink-0 bg-surface border border-surface-variant rounded-2xl overflow-hidden shadow-lg h-[calc(100vh-180px)] min-h-[450px] animate-in slide-in-from-right duration-250">
               <DocumentChat
                 isFolderMode={true}
                 folderId={currentFolderId}

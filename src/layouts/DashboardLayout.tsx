@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import SubscriptionModal from '../components/dashboard/SubscriptionModal';
 import { authService } from '../services/authService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
@@ -29,6 +30,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isLoggedIn = !!localStorage.getItem('token');
   const { avatarUrl } = useUserProfile();
 
@@ -80,7 +82,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onSearch={onSearch}
           onNotificationClick={() => alert('Notifications clicked!')}
           onHelpClick={() => alert('Help center clicked!')}
-          onUpgradeClick={() => alert('Upgrade modal clicked!')}
+          onUpgradeClick={() => setIsSubModalOpen(true)}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
           onProfileClick={() => navigate('/profile')}
@@ -101,6 +103,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </main>
         )}
       </div>
+
+      {/* Subscription Plans Modal */}
+      <SubscriptionModal 
+        isOpen={isSubModalOpen}
+        onClose={() => setIsSubModalOpen(false)}
+      />
     </div>
   );
 };

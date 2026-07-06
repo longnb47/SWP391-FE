@@ -9,7 +9,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import SharedLinkPage from './pages/SharedLinkPage'
 import ProfilePage from './pages/ProfilePage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
-
+import PaymentResultPage from './pages/PaymentResultPage'
 function App() {
   return (
     <UserProfileProvider>
@@ -25,12 +25,11 @@ function App() {
           <Route path="/document/:id" element={<FileDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/share/:token" element={<SharedLinkPage />} />
+          <Route path="/payment-result" element={<PaymentResultPage />} />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </UserProfileProvider>
-  )
-}
 
 export default App

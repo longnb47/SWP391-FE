@@ -40,6 +40,7 @@ export const LoginPage: React.FC = () => {
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('userEmail', data.email);
       localStorage.setItem('userId', String(data.userId));
+      localStorage.setItem('userRole', data.role || 'USER');
       const fullName = data.fullName || data.email.split('@')[0];
       localStorage.setItem('userFullName', fullName);
       saveKnownUser(data.userId, fullName, data.email);
@@ -60,6 +61,7 @@ export const LoginPage: React.FC = () => {
     localStorage.setItem('refreshToken', 'demo-bypass-refresh-token-12345');
     localStorage.setItem('userEmail', 'demo@example.com');
     localStorage.setItem('userId', '1');
+    localStorage.setItem('userRole', 'ADMIN'); // Bypass login as Admin for testing
     localStorage.setItem('userFullName', 'Demo User');
     saveKnownUser(1, 'Demo User', 'demo@example.com');
     navigate('/dashboard');
