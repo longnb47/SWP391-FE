@@ -17,17 +17,17 @@ interface MockOrder {
 }
 
 const initialMockOrders: MockOrder[] = [
-  { id: 1, userName: 'Long Nguyen', email: 'long@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Hôm nay, 14:32' },
-  { id: 2, userName: 'Hai Nam', email: 'hainam@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Hôm nay, 10:15' },
-  { id: 3, userName: 'Thanh Tung', email: 'tung@example.com', planName: 'PRO', amount: 199000, paymentMethod: 'VNPAY', status: 'FAILED', paidAt: 'Hôm qua, 18:45' },
+  { id: 1, userName: 'Long Nguyen', email: 'long@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Today, 14:32' },
+  { id: 2, userName: 'Hai Nam', email: 'hainam@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Today, 10:15' },
+  { id: 3, userName: 'Thanh Tung', email: 'tung@example.com', planName: 'PRO', amount: 199000, paymentMethod: 'VNPAY', status: 'FAILED', paidAt: 'Yesterday, 18:45' },
   { id: 4, userName: 'Minh Chau', email: 'chau@example.com', planName: 'VIP', amount: 499000, paymentMethod: 'VNPAY', status: 'PENDING', paidAt: '03-07-2026, 15:00' },
 ];
 
 const initialMockUsers: AdminUser[] = [
-  { userId: 1, fullName: 'Nguyễn Linh', email: 'linh.n@company.vn', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-01T10:30:00', updatedAt: null },
-  { userId: 2, fullName: 'Trần Huy', email: 'huy.tran@dev.io', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-02T10:30:00', updatedAt: null },
+  { userId: 1, fullName: 'Nguyen Linh', email: 'linh.n@company.vn', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-01T10:30:00', updatedAt: null },
+  { userId: 2, fullName: 'Tran Huy', email: 'huy.tran@dev.io', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-02T10:30:00', updatedAt: null },
   { userId: 3, fullName: 'Minh Anh', email: 'minhanh@gmail.com', provider: 'GOOGLE', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-03T10:30:00', updatedAt: null },
-  { userId: 4, fullName: 'Lê Hoàng Nam', email: 'namlh@aetherdocs.vn', provider: 'LOCAL', role: 'ADMIN', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-04T10:30:00', updatedAt: null },
+  { userId: 4, fullName: 'Le Hoang Nam', email: 'namlh@aetherdocs.vn', provider: 'LOCAL', role: 'ADMIN', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-04T10:30:00', updatedAt: null },
 ];
 
 export const AdminPlansView: React.FC = () => {
@@ -253,7 +253,7 @@ export const AdminPlansView: React.FC = () => {
       const response = await userService.updateUserStatus(userId, targetStatus);
       if (response.data && response.data.success) {
         setUsers(prev => prev.map(u => u.userId === userId ? { ...u, status: targetStatus } : u));
-        alert(`Trạng thái người dùng đã được cập nhật thành ${targetStatus}!`);
+        alert(`User status updated to ${targetStatus} successfully!`);
       } else {
         alert(response.error || 'Failed to update user status.');
       }
@@ -297,12 +297,12 @@ export const AdminPlansView: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Metric Cards (No percentage changes) */}
+      {/* 1. Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Total Users Metric Card */}
         <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Tổng người dùng</p>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Total Users</p>
             <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
               {totalUsers.toLocaleString()}
             </h3>
@@ -315,7 +315,7 @@ export const AdminPlansView: React.FC = () => {
         {/* Active Subscriptions Metric Card */}
         <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Gói hoạt động</p>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Active Plans</p>
             <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
               {plans.length || 3}
             </h3>
@@ -328,7 +328,7 @@ export const AdminPlansView: React.FC = () => {
         {/* Revenue Metric Card */}
         <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Doanh thu tháng</p>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Monthly Revenue</p>
             <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
               {revenue ? formatCurrency(revenue.totalRevenue) : '₫245.8M'}
             </h3>
@@ -346,7 +346,7 @@ export const AdminPlansView: React.FC = () => {
           <div className="p-5 border-b border-outline-variant/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/10">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-primary text-[24px]">manage_accounts</span>
-              <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Quản lý người dùng</h4>
+              <h4 className="font-title-lg text-title-lg font-bold text-on-surface">User Management</h4>
             </div>
             
             {/* Search Input */}
@@ -354,7 +354,7 @@ export const AdminPlansView: React.FC = () => {
               <span className="material-symbols-outlined absolute left-3 top-2 text-secondary text-[20px]">search</span>
               <input
                 type="text"
-                placeholder="Tìm kiếm người dùng..."
+                placeholder="Search users..."
                 className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-1.5 text-xs outline-none focus:border-primary"
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
@@ -366,17 +366,17 @@ export const AdminPlansView: React.FC = () => {
             <table className="w-full text-left text-sm border-collapse">
               <thead className="bg-surface-container-low text-secondary text-xs font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4">Tên &amp; Email</th>
-                  <th className="px-6 py-4">Loại gói</th>
-                  <th className="px-6 py-4">Trạng thái</th>
-                  <th className="px-6 py-4 text-right">Hành động</th>
+                  <th className="px-6 py-4">Name &amp; Email</th>
+                  <th className="px-6 py-4">Plan Tier</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/60">
                 {users.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-8 text-center text-secondary">
-                      Không tìm thấy người dùng phù hợp.
+                      No users found matching query.
                     </td>
                   </tr>
                 ) : (
@@ -385,6 +385,7 @@ export const AdminPlansView: React.FC = () => {
                       ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
                       : 'U';
                     const isSuccess = user.status === 'ACTIVE';
+                    const isPending = user.status === 'PENDING';
                     
                     return (
                       <tr key={user.userId} className="hover:bg-surface-container/10 transition-colors">
@@ -408,9 +409,14 @@ export const AdminPlansView: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="flex items-center gap-1.5 font-medium text-xs">
-                            <span className={`w-2 h-2 rounded-full ${isSuccess ? 'bg-success' : 'bg-error'}`}></span>
-                            {isSuccess ? 'Hoạt động' : 'Bị chặn'}
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            isSuccess
+                              ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                              : isPending
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              : 'bg-red-500/10 text-red-600 border-red-500/20'
+                          }`}>
+                            {isSuccess ? 'Active' : isPending ? 'Pending' : 'Blocked'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -422,7 +428,7 @@ export const AdminPlansView: React.FC = () => {
                                 : 'border-primary/25 text-primary hover:bg-primary/10'
                             }`}
                           >
-                            {isSuccess ? 'Chặn' : 'Bỏ chặn'}
+                            {isSuccess ? 'Block' : 'Unblock'}
                           </button>
                         </td>
                       </tr>
@@ -440,7 +446,7 @@ export const AdminPlansView: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-tertiary text-[24px]">subscriptions</span>
-                <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Gói dịch vụ</h4>
+                <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Pricing Plans</h4>
               </div>
               <button
                 onClick={() => setIsPlanModalOpen(true)}
@@ -454,7 +460,7 @@ export const AdminPlansView: React.FC = () => {
             <div className="space-y-4 flex-1 overflow-y-auto max-h-[350px] pr-1">
               {plans.length === 0 ? (
                 <div className="text-center py-6 text-xs text-secondary">
-                  Không có gói cước nào hoạt động.
+                  No active subscription plans.
                 </div>
               ) : (
                 plans.map((plan) => {
@@ -469,17 +475,17 @@ export const AdminPlansView: React.FC = () => {
                           {plan.name} Plan
                         </span>
                         <span className="text-success font-black text-xs">
-                          {isFree ? 'Miễn phí' : formatCurrency(plan.price)}
+                          {isFree ? 'Free' : formatCurrency(plan.price)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-secondary text-[11px]">
-                        <span>Dung lượng: <strong>{plan.storageLimitGb} GB</strong></span>
+                        <span>Storage: <strong>{plan.storageLimitGb} GB</strong></span>
                         {!isFree && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan); }}
                             className="text-error hover:underline text-[10px]"
                           >
-                            Xóa gói
+                            Delete
                           </button>
                         )}
                       </div>
@@ -495,7 +501,7 @@ export const AdminPlansView: React.FC = () => {
               className="mt-6 w-full py-2.5 border-2 border-dashed border-outline-variant hover:border-primary hover:text-primary text-on-surface-variant font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">add_circle</span>
-              Tạo gói mới
+              Create New Plan
             </button>
           </div>
         </section>
@@ -506,7 +512,7 @@ export const AdminPlansView: React.FC = () => {
         <div className="p-5 border-b border-outline-variant/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/10">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-success text-[24px]">receipt_long</span>
-            <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Đơn hàng gần đây</h4>
+            <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Recent Orders</h4>
           </div>
           
           {/* Order Search */}
@@ -514,7 +520,7 @@ export const AdminPlansView: React.FC = () => {
             <span className="material-symbols-outlined absolute left-3 top-2 text-secondary text-[20px]">search</span>
             <input
               type="text"
-              placeholder="Tìm kiếm đơn hàng..."
+              placeholder="Search orders..."
               className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-1.5 text-xs outline-none focus:border-primary"
               value={orderSearch}
               onChange={(e) => setOrderSearch(e.target.value)}
@@ -526,23 +532,24 @@ export const AdminPlansView: React.FC = () => {
           <table className="w-full text-left text-sm border-collapse">
             <thead className="bg-surface-container-low text-secondary text-xs font-semibold uppercase tracking-wider">
               <tr>
-                <th className="px-6 py-4">Mã đơn hàng</th>
-                <th className="px-6 py-4">Khách hàng</th>
-                <th className="px-6 py-4">Số tiền</th>
-                <th className="px-6 py-4">Ngày giao dịch</th>
-                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4">Order ID</th>
+                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Amount</th>
+                <th className="px-6 py-4">Transaction Date</th>
+                <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/60">
               {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-secondary">
-                    Không tìm thấy đơn hàng phù hợp.
+                    No orders found matching query.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => {
                   const isSuccessStatus = order.status === 'SUCCESS';
+                  const isPendingStatus = order.status === 'PENDING';
                   return (
                     <tr key={order.paymentId} className="hover:bg-surface-container/10 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs text-secondary">
@@ -566,11 +573,11 @@ export const AdminPlansView: React.FC = () => {
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                           isSuccessStatus 
                             ? 'bg-green-500/10 text-green-600 border-green-500/20' 
-                            : order.status === 'PENDING'
+                            : isPendingStatus
                             ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                             : 'bg-red-500/10 text-red-600 border-red-500/20'
                         }`}>
-                          {isSuccessStatus ? 'Hoàn thành' : order.status === 'PENDING' ? 'Chờ xử lý' : 'Thất bại'}
+                          {isSuccessStatus ? 'Success' : isPendingStatus ? 'Pending' : 'Failed'}
                         </span>
                       </td>
                     </tr>
@@ -582,7 +589,7 @@ export const AdminPlansView: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Plan Configuration Modal Dialog (Includes all 10 fields with beautiful labels) */}
+      {/* 4. Plan Configuration Modal Dialog */}
       {isPlanModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
@@ -597,7 +604,7 @@ export const AdminPlansView: React.FC = () => {
             <div className="px-6 py-4 border-b border-outline-variant/60 flex items-center justify-between bg-surface-container/30">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[24px]">design_services</span>
-                <h3 className="font-title-lg text-title-lg font-bold text-on-surface">Cấu hình gói dịch vụ mới</h3>
+                <h3 className="font-title-lg text-title-lg font-bold text-on-surface">Configure Pricing Plan</h3>
               </div>
               <button 
                 onClick={() => setIsPlanModalOpen(false)}
@@ -616,107 +623,107 @@ export const AdminPlansView: React.FC = () => {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 1. Tên Gói */}
+                {/* 1. Plan Name */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Tên gói dịch vụ *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Plan Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ví dụ: PLUS, PRO, VIP"
+                    placeholder="e.g. PLUS, PRO, VIP"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
 
-                {/* 2. Giá Gói */}
+                {/* 2. Price */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Giá bán (VND) *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Price (VND) *</label>
                   <input
                     type="number"
                     required
                     min="0"
-                    placeholder="Ví dụ: 99000"
+                    placeholder="e.g. 99000"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={price}
                     onChange={(e) => setPrice(Number(e.target.value))}
                   />
                 </div>
 
-                {/* 3. Thời Hạn */}
+                {/* 3. Duration */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Thời hạn sử dụng (Ngày) *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Duration (Days) *</label>
                   <input
                     type="number"
                     required
                     min="1"
-                    placeholder="Ví dụ: 30, 365"
+                    placeholder="e.g. 30, 365"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={durationDays}
                     onChange={(e) => setDurationDays(Number(e.target.value))}
                   />
                 </div>
 
-                {/* 4. Dung Lượng Lưu Trữ */}
+                {/* 4. Storage Limit */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Dung lượng tài khoản (GB) *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Storage Limit (GB) *</label>
                   <input
                     type="number"
                     required
                     min="1"
-                    placeholder="Ví dụ: 10"
+                    placeholder="e.g. 10"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={storageLimitGb}
                     onChange={(e) => setStorageLimitGb(Number(e.target.value))}
                   />
                 </div>
 
-                {/* 5. Dung Lượng Tải Lên Tối Đa */}
+                {/* 5. Max File Size */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Dung lượng file tối đa (MB) *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Max File Size (MB) *</label>
                   <input
                     type="number"
                     required
                     min="1"
-                    placeholder="Ví dụ: 50"
+                    placeholder="e.g. 50"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={maxUploadSizeMb}
                     onChange={(e) => setMaxUploadSizeMb(Number(e.target.value))}
                   />
                 </div>
 
-                {/* 6. Hạn Mức Tokens AI */}
+                {/* 6. Monthly Token Limit */}
                 <div>
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Hạn mức AI tokens/tháng *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Monthly Token Limit *</label>
                   <input
                     type="number"
                     required
                     min="0"
-                    placeholder="Ví dụ: 100000"
+                    placeholder="e.g. 100000"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={monthlyTokenLimit}
                     onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
                   />
                 </div>
 
-                {/* 7. Định Dạng Cho Phép */}
+                {/* 7. Allowed File Formats */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Định dạng file được cho phép *</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Allowed File Formats *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ví dụ: pdf,doc,docx,pptx,xls,xlsx,png,mp4"
+                    placeholder="e.g. pdf,doc,docx,pptx,xls,xlsx,png,mp4"
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
                     value={allowedFormats}
                     onChange={(e) => setAllowedFormats(e.target.value)}
                   />
                 </div>
 
-                {/* 8. Mô Tả Chi Tiết */}
+                {/* 8. Description */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Mô tả gói dịch vụ</label>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Description</label>
                   <textarea
-                    placeholder="Nhập mô tả chi tiết của gói dịch vụ..."
+                    placeholder="Enter detailed description of the pricing tier..."
                     rows={2}
                     className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none resize-none"
                     value={description}
@@ -724,7 +731,7 @@ export const AdminPlansView: React.FC = () => {
                   />
                 </div>
 
-                {/* 9. Tính Năng Checkboxes */}
+                {/* 9. Advanced Feature Checkboxes */}
                 <div className="md:col-span-2 flex flex-wrap gap-6 pt-2">
                   <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-on-surface-variant select-none">
                     <input
@@ -733,7 +740,7 @@ export const AdminPlansView: React.FC = () => {
                       checked={multipleDocuments}
                       onChange={(e) => setMultipleDocuments(e.target.checked)}
                     />
-                    <span>Chat với nhiều tài liệu cùng lúc</span>
+                    <span>Multi-document chat support</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-on-surface-variant select-none">
                     <input
@@ -742,7 +749,7 @@ export const AdminPlansView: React.FC = () => {
                       checked={videoUpload}
                       onChange={(e) => setVideoUpload(e.target.checked)}
                     />
-                    <span>Cho phép tải lên tệp video</span>
+                    <span>Video file upload support</span>
                   </label>
                 </div>
               </div>
@@ -754,14 +761,14 @@ export const AdminPlansView: React.FC = () => {
                   onClick={() => setIsPlanModalOpen(false)}
                   className="px-4 py-2 border border-outline text-secondary hover:bg-surface-container rounded-xl font-semibold cursor-pointer text-sm transition-colors"
                 >
-                  Hủy bỏ
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-primary text-on-primary hover:bg-on-primary-fixed-variant rounded-xl font-semibold cursor-pointer text-sm transition-colors flex items-center gap-2"
                 >
-                  {isSubmitting ? 'Đang lưu...' : 'Lưu gói'}
+                  {isSubmitting ? 'Saving...' : 'Save Plan'}
                 </button>
               </div>
             </form>
