@@ -43,6 +43,18 @@ export interface UpdateUserSettingsRequest {
   showOnlineStatus?: boolean;
 }
 
+export interface UserDetail {
+  id: number;
+  fullName: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+  planName: string;
+  storageUsedGb: number;
+  storageLimitGb: number;
+  status: 'ACTIVE' | 'BLOCKED';
+  joinedAt: string;
+}
+
 export const userService = {
   async getMyProfile(): Promise<ApiResponse<BackendResponse<UserProfileResponse>>> {
     return apiClient.get<BackendResponse<UserProfileResponse>>('/users/me');
@@ -78,19 +90,7 @@ export const userService = {
       body: JSON.stringify(request),
     });
   },
-export interface UserDetail {
-  id: number;
-  fullName: string;
-  email: string;
-  role: 'USER' | 'ADMIN';
-  planName: string;
-  storageUsedGb: number;
-  storageLimitGb: number;
-  status: 'ACTIVE' | 'BLOCKED';
-  joinedAt: string;
-}
 
-export const userService = {
   async getAllUsers(): Promise<ApiResponse<BackendResponse<UserDetail[]>>> {
     return apiClient.get<BackendResponse<UserDetail[]>>('/admin/users');
   },

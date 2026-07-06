@@ -31,5 +31,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </UserProfileProvider>
+  )
+}
 
 export default App
