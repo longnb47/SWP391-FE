@@ -60,6 +60,15 @@ export interface SystemOrder {
   paidAt: string;
 }
 
+export interface UserPaymentHistory {
+  paymentId: number;
+  planName: string;
+  amount: number;
+  paymentMethod: string;
+  status: string;
+  paidAt: string;
+}
+
 export const subscriptionService = {
   async getSubscriptionPlans(): Promise<ApiResponse<BackendResponse<SubscriptionPlan[]>>> {
     return apiClient.get<BackendResponse<SubscriptionPlan[]>>('/subscription-plans');
@@ -79,6 +88,10 @@ export const subscriptionService = {
 
   async getMySubscription(): Promise<ApiResponse<BackendResponse<UserSubscription>>> {
     return apiClient.get<BackendResponse<UserSubscription>>('/subscriptions/me');
+  },
+
+  async getMyPaymentHistory(): Promise<ApiResponse<BackendResponse<UserPaymentHistory[]>>> {
+    return apiClient.get<BackendResponse<UserPaymentHistory[]>>('/payments/history');
   },
 
   async getRevenue(): Promise<ApiResponse<BackendResponse<PaymentRevenue>>> {

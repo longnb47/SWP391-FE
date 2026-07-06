@@ -8,6 +8,7 @@ export interface TopbarProps {
   onHelpClick?: () => void;
   onUpgradeClick?: () => void;
   onProfileClick?: () => void;
+  onBillingClick?: () => void;
   onLogoutClick?: () => void;
   isLoggedIn?: boolean;
   onLoginClick?: () => void;
@@ -21,6 +22,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   onHelpClick,
   onUpgradeClick,
   onProfileClick,
+  onBillingClick,
   onLogoutClick,
   isLoggedIn = false,
   onLoginClick,
@@ -40,41 +42,47 @@ export const Topbar: React.FC<TopbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  const handleMenuItemClick = (action?: () => void) => {
+  const handleMenuItemClick = (callback?: () => void) => {
     setIsMenuOpen(false);
-    if (action) action();
+    if (callback) callback();
   };
 
   return (
-    <header className="flex justify-between items-center px-gutter w-full sticky top-0 z-30 shadow-sm bg-surface h-16 border-b border-outline-variant/30 select-none">
-      {/* Left Area: Mobile Menu Toggle & App Name */}
-      <div className="flex items-center">
-        {onMobileMenuToggle && (
-          <button
-            onClick={onMobileMenuToggle}
-            className="md:hidden p-2 -ml-2 text-secondary hover:bg-surface-container-high rounded-full transition-colors mr-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined select-none">menu</span>
-          </button>
-        )}
+    <header className="h-topbar-height bg-surface border-b border-outline-variant px-4 md:px-container-padding flex items-center justify-between shrink-0 relative z-30 select-none">
+      {/* Mobile menu toggle & logo */}
+      <div className="flex items-center gap-stack-sm md:gap-stack-md">
+        <button
+          onClick={onMobileMenuToggle}
+          className="md:hidden text-secondary hover:text-on-surface hover:bg-surface-container p-1.5 rounded-full cursor-pointer transition-colors active:opacity-80"
+        >
+          <span className="material-symbols-outlined select-none">menu</span>
+        </button>
+
+        {/* Branding on Mobile Topbar */}
+        <div className="flex items-center gap-1.5 md:hidden select-none">
+          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
+            <span className="material-symbols-outlined icon-fill select-none text-[18px]">cloud_sync</span>
+          </div>
+          <span className="font-title-md text-title-md font-bold text-on-surface tracking-tight">AetherDocs</span>
+        </div>
       </div>
 
-      {/* Middle Area: Search bar */}
-      <div className="flex-1 flex items-center max-w-2xl md:ml-0">
-        <SearchInput onSearchChange={onSearch} />
+      {/* Global Search Input (Hidden on mobile layout) */}
+      <div className="hidden md:block w-full max-w-md mx-4">
+        {onSearch && <SearchInput onSearchChange={onSearch} placeholder="Search files, folders..." />}
       </div>
 
-      {/* Right Area: Actions */}
-      <div className="flex items-center gap-2 sm:gap-4 ml-4">
-        {/* Help button (Hidden on very small screens) */}
+      {/* Utility Actions & User Menu */}
+      <div className="flex items-center gap-3">
+        {/* Help Icon */}
         <button
           onClick={onHelpClick}
-          className="text-secondary hover:bg-surface-container-high p-2 rounded-full transition-colors scale-95 active:opacity-80 hidden sm:block cursor-pointer select-none"
+          className="text-secondary hover:bg-surface-container-high p-2 rounded-full transition-colors scale-95 active:opacity-80 cursor-pointer select-none"
         >
           <span className="material-symbols-outlined select-none">help</span>
         </button>
 
-        {/* Notifications button */}
+        {/* Notifications Icon */}
         <button
           onClick={onNotificationClick}
           className="text-secondary hover:bg-surface-container-high p-2 rounded-full transition-colors scale-95 active:opacity-80 relative cursor-pointer select-none"
@@ -118,6 +126,14 @@ export const Topbar: React.FC<TopbarProps> = ({
                 >
                   <span className="material-symbols-outlined text-[20px] text-secondary">person</span>
                   Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMenuItemClick(onBillingClick)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-body-md text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px] text-secondary">receipt_long</span>
+                  Billing
                 </button>
                 <div className="my-1 border-t border-outline-variant/50" />
                 <button
