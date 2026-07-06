@@ -37,8 +37,8 @@ export const AdminPlansView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form State for creating a new plan
-  const [isCreating, setIsCreating] = useState(false);
+  // Modal State for creating a new plan
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [durationDays, setDurationDays] = useState(30);
@@ -223,7 +223,7 @@ export const AdminPlansView: React.FC = () => {
 
       if (response.data && response.data.success) {
         alert('New subscription plan created successfully!');
-        setIsCreating(false);
+        setIsPlanModalOpen(false);
         // Reset form fields
         setName('');
         setPrice(0);
@@ -443,83 +443,12 @@ export const AdminPlansView: React.FC = () => {
                 <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Gói dịch vụ</h4>
               </div>
               <button
-                onClick={() => setIsCreating(!isCreating)}
+                onClick={() => setIsPlanModalOpen(true)}
                 className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors material-symbols-outlined cursor-pointer"
               >
-                {isCreating ? 'close' : 'edit'}
+                edit
               </button>
             </div>
-
-            {/* Plan Creation Form */}
-            {isCreating && (
-              <div className="border border-primary/20 p-4 rounded-xl bg-surface-container-low/40 mb-4 space-y-4 animate-in slide-in-from-top-4 duration-200">
-                <h5 className="font-semibold text-sm text-primary flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                  <span>Tạo gói mới</span>
-                </h5>
-                {formError && <div className="p-3 bg-error-container text-on-error-container text-xs rounded-lg font-medium">{formError}</div>}
-                <form onSubmit={handleCreatePlanSubmit} className="space-y-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Tên gói..."
-                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    placeholder="Giá gói (VND)..."
-                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                  />
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="Thời hạn (ngày)..."
-                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
-                    value={durationDays}
-                    onChange={(e) => setDurationDays(Number(e.target.value))}
-                  />
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="Dung lượng (GB)..."
-                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
-                    value={storageLimitGb}
-                    onChange={(e) => setStorageLimitGb(Number(e.target.value))}
-                  />
-                  <textarea
-                    placeholder="Mô tả chi tiết..."
-                    rows={2}
-                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary resize-none"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsCreating(false)}
-                      className="px-3 py-1 text-xs border border-outline rounded-lg font-semibold text-secondary hover:bg-surface-container"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-3 py-1 text-xs bg-primary text-on-primary rounded-lg font-semibold hover:brightness-105"
-                    >
-                      {isSubmitting ? 'Đang lưu...' : 'Lưu gói'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
 
             {/* Active Plans List (No Subscribers count) */}
             <div className="space-y-4 flex-1 overflow-y-auto max-h-[350px] pr-1">
@@ -561,15 +490,13 @@ export const AdminPlansView: React.FC = () => {
             </div>
 
             {/* Dashed Create Button */}
-            {!isCreating && (
-              <button 
-                onClick={() => setIsCreating(true)}
-                className="mt-6 w-full py-2.5 border-2 border-dashed border-outline-variant hover:border-primary hover:text-primary text-on-surface-variant font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                Tạo gói mới
-              </button>
-            )}
+            <button 
+              onClick={() => setIsPlanModalOpen(true)}
+              className="mt-6 w-full py-2.5 border-2 border-dashed border-outline-variant hover:border-primary hover:text-primary text-on-surface-variant font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">add_circle</span>
+              Tạo gói mới
+            </button>
           </div>
         </section>
       </div>
@@ -636,10 +563,14 @@ export const AdminPlansView: React.FC = () => {
                         {order.paidAt || order.createdAt}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          isSuccessStatus ? 'bg-success-container text-success' : 'bg-surface-variant text-secondary'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          isSuccessStatus 
+                            ? 'bg-green-500/10 text-green-600 border-green-500/20' 
+                            : order.status === 'PENDING'
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            : 'bg-red-500/10 text-red-600 border-red-500/20'
                         }`}>
-                          {isSuccessStatus ? 'Hoàn thành' : order.status}
+                          {isSuccessStatus ? 'Hoàn thành' : order.status === 'PENDING' ? 'Chờ xử lý' : 'Thất bại'}
                         </span>
                       </td>
                     </tr>
@@ -650,6 +581,193 @@ export const AdminPlansView: React.FC = () => {
           </table>
         </div>
       </section>
+
+      {/* 4. Plan Configuration Modal Dialog (Includes all 10 fields with beautiful labels) */}
+      {isPlanModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            onClick={() => setIsPlanModalOpen(false)}
+            className="absolute inset-0 bg-scrim/40 backdrop-blur-[2px] animate-in fade-in"
+          />
+
+          {/* Dialog Container */}
+          <div className="relative w-full max-w-2xl bg-surface-container-low border border-outline-variant rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-outline-variant/60 flex items-center justify-between bg-surface-container/30">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[24px]">design_services</span>
+                <h3 className="font-title-lg text-title-lg font-bold text-on-surface">Cấu hình gói dịch vụ mới</h3>
+              </div>
+              <button 
+                onClick={() => setIsPlanModalOpen(false)}
+                className="p-1 text-secondary hover:text-on-surface hover:bg-surface-container rounded-full transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreatePlanSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {formError && (
+                <div className="p-4 bg-error-container text-on-error-container border border-error/25 rounded-xl text-sm font-medium">
+                  {formError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. Tên Gói */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Tên gói dịch vụ *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ví dụ: PLUS, PRO, VIP"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+
+                {/* 2. Giá Gói */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Giá bán (VND) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="Ví dụ: 99000"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={price}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                  />
+                </div>
+
+                {/* 3. Thời Hạn */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Thời hạn sử dụng (Ngày) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Ví dụ: 30, 365"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={durationDays}
+                    onChange={(e) => setDurationDays(Number(e.target.value))}
+                  />
+                </div>
+
+                {/* 4. Dung Lượng Lưu Trữ */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Dung lượng tài khoản (GB) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Ví dụ: 10"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={storageLimitGb}
+                    onChange={(e) => setStorageLimitGb(Number(e.target.value))}
+                  />
+                </div>
+
+                {/* 5. Dung Lượng Tải Lên Tối Đa */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Dung lượng file tối đa (MB) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Ví dụ: 50"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={maxUploadSizeMb}
+                    onChange={(e) => setMaxUploadSizeMb(Number(e.target.value))}
+                  />
+                </div>
+
+                {/* 6. Hạn Mức Tokens AI */}
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Hạn mức AI tokens/tháng *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="Ví dụ: 100000"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={monthlyTokenLimit}
+                    onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
+                  />
+                </div>
+
+                {/* 7. Định Dạng Cho Phép */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Định dạng file được cho phép *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ví dụ: pdf,doc,docx,pptx,xls,xlsx,png,mp4"
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+                    value={allowedFormats}
+                    onChange={(e) => setAllowedFormats(e.target.value)}
+                  />
+                </div>
+
+                {/* 8. Mô Tả Chi Tiết */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Mô tả gói dịch vụ</label>
+                  <textarea
+                    placeholder="Nhập mô tả chi tiết của gói dịch vụ..."
+                    rows={2}
+                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none resize-none"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                {/* 9. Tính Năng Checkboxes */}
+                <div className="md:col-span-2 flex flex-wrap gap-6 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-on-surface-variant select-none">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer"
+                      checked={multipleDocuments}
+                      onChange={(e) => setMultipleDocuments(e.target.checked)}
+                    />
+                    <span>Chat với nhiều tài liệu cùng lúc</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-on-surface-variant select-none">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer"
+                      checked={videoUpload}
+                      onChange={(e) => setVideoUpload(e.target.checked)}
+                    />
+                    <span>Cho phép tải lên tệp video</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/60">
+                <button
+                  type="button"
+                  onClick={() => setIsPlanModalOpen(false)}
+                  className="px-4 py-2 border border-outline text-secondary hover:bg-surface-container rounded-xl font-semibold cursor-pointer text-sm transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-primary text-on-primary hover:bg-on-primary-fixed-variant rounded-xl font-semibold cursor-pointer text-sm transition-colors flex items-center gap-2"
+                >
+                  {isSubmitting ? 'Đang lưu...' : 'Lưu gói'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
