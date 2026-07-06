@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode (toggled on <html> by src/lib/themeHelpers.ts)
+   instead of Tailwind v4's default prefers-color-scheme-only dark variant,
+   so LIGHT/DARK/SYSTEM can be explicitly chosen in Settings. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Colors */
   --color-primary: #FF6B00;
@@ -68,6 +73,59 @@
   --radius-full: 9999px;
 }
 
+/* Dark theme color tokens - same semantic roles as @theme above, MD3-style dark
+   mapping (dark surfaces, light on-surface text, brightened brand accent). */
+.dark {
+  --color-primary: #ffb68a;
+  --color-primary-fixed: #7a3000;
+  --color-primary-fixed-dim: #ffb68a;
+  --color-on-primary: #5c2100;
+  --color-on-primary-container: #ffdbc8;
+  --color-primary-container: #7a3000;
+
+  --color-secondary: #c8c6c5;
+  --color-on-secondary-container: #e2dfde;
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-tertiary-container: #5c2e00;
+  --color-surface: #131313;
+  --color-on-tertiary-fixed: #ffdbc8;
+  --color-secondary-fixed-dim: #c8c6c5;
+  --color-inverse-primary: #ff6b00;
+  --color-on-background: #e4e2e2;
+  --color-on-surface: #e4e2e2;
+  --color-surface-dim: #131313;
+  --color-surface-container-highest: #38393a;
+  --color-surface-variant: #4a4540;
+  --color-on-secondary-fixed-variant: #c8c6c5;
+  --color-secondary-container: #474746;
+  --color-secondary-fixed: #474746;
+  --color-on-tertiary-fixed-variant: #ffb68a;
+  --color-inverse-on-surface: #1b1c1c;
+  --color-on-primary-fixed: #ffdbc8;
+  --color-background: #131313;
+  --color-on-primary-fixed-variant: #ffb68a;
+  --color-surface-bright: #3a3a3a;
+  --color-on-secondary-fixed: #e5e2e1;
+  --color-inverse-surface: #e4e2e2;
+  --color-on-error: #690005;
+  --color-surface-tint: #ffb68a;
+  --color-outline: #a98d80;
+  --color-tertiary-fixed: #ffdbc8;
+  --color-on-tertiary: #5c2400;
+  --color-surface-container-low: #1e1f1f;
+  --color-on-secondary: #333233;
+  --color-tertiary-fixed-dim: #ffb68a;
+  --color-surface-container-high: #292a2a;
+  --color-tertiary: #ffb68a;
+  --color-surface-container-lowest: #0d0d0d;
+  --color-on-error-container: #ffdad6;
+  --color-surface-container: #232424;
+  --color-outline-variant: #4a3830;
+  --color-on-surface-variant: #d6c2b5;
+  --color-on-tertiary-container: #ffdbc8;
+}
+
 /* Custom Scrollbar for a cleaner look */
 ::-webkit-scrollbar {
   width: 8px;
@@ -82,6 +140,12 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #c8c6c5;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4a4540;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5a5450;
 }
 
 /* Glassmorphism card utility */

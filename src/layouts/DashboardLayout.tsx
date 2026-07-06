@@ -4,6 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import SubscriptionModal from '../components/dashboard/SubscriptionModal';
 import { authService } from '../services/authService';
+import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
 export interface DashboardLayoutProps {
@@ -31,6 +32,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isLoggedIn = !!localStorage.getItem('token');
+  const { avatarUrl } = useUserProfile();
 
   const handleMobileMenuToggle = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -38,6 +40,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const handleSidebarClose = () => {
     setIsMobileSidebarOpen(false);
+  };
+
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm('Are you sure you want to log out?');
+    if (!confirmLogout) return;
+
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (err) {
+        console.error('Logout error on backend:', err);
+      }
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userId');
+    window.location.href = '/login';
   };
 
   return (
@@ -64,25 +85,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onUpgradeClick={() => setIsSubModalOpen(true)}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
-          onProfileClick={async () => {
-            const confirmLogout = window.confirm('Are you sure you want to log out?');
-            if (confirmLogout) {
-              const refreshToken = localStorage.getItem('refreshToken');
-              if (refreshToken) {
-                try {
-                  await authService.logout(refreshToken);
-                } catch (err) {
-                  console.error('Logout error on backend:', err);
-                }
-              }
-              localStorage.removeItem('token');
-              localStorage.removeItem('refreshToken');
-              localStorage.removeItem('userEmail');
-              localStorage.removeItem('userId');
-              localStorage.removeItem('userRole');
-              window.location.href = '/login';
-            }
-          }}
+          onProfileClick={() => navigate('/profile')}
+          onLogoutClick={handleLogout}
+          avatarUrl={avatarUrl}
         />
 
         {/* Scrollable Main Canvas */}

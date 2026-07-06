@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../common/Button';
 import StorageUsageCard from '../dashboard/StorageUsageCard';
 import { mockStorageUsage } from '../../features/dashboard/dashboard.mock';
@@ -41,6 +42,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onNewFolderClick,
   storage,
 }) => {
+  const navigate = useNavigate();
   const role = localStorage.getItem('userRole');
   const items = [...navItems];
   if (role === 'ADMIN') {
@@ -48,7 +50,14 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   }
 
   const handleTabClick = (tabName: string) => {
-    if (onTabChange) onTabChange(tabName);
+    if (onTabChange) {
+      // Already on a page that manages tabs locally (e.g. the dashboard) - switch in place.
+      onTabChange(tabName);
+    } else {
+      // No local tab handler (e.g. viewing from /profile) - navigate to the dashboard,
+      // which restores the requested tab from location.state on mount.
+      navigate('/dashboard', { state: { activeTab: tabName } });
+    }
     if (onClose) onClose(); // Close mobile sidebar
   };
 
@@ -104,20 +113,17 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         {items.map((item) => {
           const isActive = activeTab === item.name;
           return (
-            <a
+            <button
               key={item.name}
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleTabClick(item.name);
-              }}
-              className={`flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group ${
+              type="button"
+              onClick={() => handleTabClick(item.name)}
+              className={`w-full text-left flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group cursor-pointer ${
                 isActive
                   ? 'text-on-primary-container font-bold bg-primary/10 border-l-4 border-primary rounded-l-none'
                   : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
               }`}
             >
-              <span 
+              <span
                 className={`material-symbols-outlined transition-transform duration-200 ${
                   isActive ? 'icon-fill text-primary' : 'group-hover:scale-110'
                 }`}
@@ -126,33 +132,30 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 {item.icon}
               </span>
               <span className="font-label-md text-label-md">{item.name}</span>
-            </a>
+            </button>
           );
         })}
 
         <div className="my-4 border-t border-outline-variant/50 mx-4" />
 
         {/* AI Assistant Tab */}
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            handleTabClick('AI Assistant');
-          }}
-          className={`flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group ${
+        <button
+          type="button"
+          onClick={() => handleTabClick('AI Assistant')}
+          className={`w-full text-left flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out group cursor-pointer ${
             activeTab === 'AI Assistant'
               ? 'text-tertiary font-bold bg-tertiary-fixed/30 border-l-4 border-tertiary rounded-l-none'
               : 'text-tertiary hover:text-tertiary-container hover:bg-tertiary-fixed/30'
           }`}
         >
-          <span 
-            className="material-symbols-outlined group-hover:animate-pulse" 
+          <span
+            className="material-symbols-outlined group-hover:animate-pulse"
             style={{ fontSize: '20px' }}
           >
             smart_toy
           </span>
           <span className="font-label-md text-label-md">AI Assistant</span>
-        </a>
+        </button>
       </nav>
 
       {/* Footer Area */}
@@ -161,13 +164,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         <StorageUsageCard storage={storage || mockStorageUsage} />
         
         {/* Settings tab */}
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            handleTabClick('Settings');
-          }}
-          className={`flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out ${
+        <button
+          type="button"
+          onClick={() => handleTabClick('Settings')}
+          className={`w-full text-left flex items-center gap-stack-md px-4 py-2 rounded-lg transition-all duration-200 ease-in-out cursor-pointer ${
             activeTab === 'Settings'
               ? 'text-on-surface font-bold bg-surface-container border-l-4 border-secondary rounded-l-none'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
@@ -177,7 +177,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             settings
           </span>
           <span className="font-label-md text-label-md">Settings</span>
-        </a>
+        </button>
       </div>
     </div>
   );
@@ -209,8 +209,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop Overlay */}
-          <div 
-            onClick={onClose} 
+          <div
+            onClick={onClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
           />
           {/* Sliding Panel */}
