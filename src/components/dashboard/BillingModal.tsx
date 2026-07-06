@@ -23,7 +23,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose }) =
         if (response.data && response.data.success) {
           // Sort descending by date
           const sorted = response.data.data.sort((a, b) => 
-            new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+            new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime()
           );
           setHistory(sorted);
         } else {
@@ -40,27 +40,11 @@ export const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose }) =
     fetchHistory();
   }, [isOpen]);
 
+  const totalSpent = history
+    .filter(record => record.status?.toUpperCase() === 'SUCCESS')
+    .reduce((sum, record) => sum + record.amount, 0);
+
   if (!isOpen) return null;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('vi-VN', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateString;
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center select-none p-4">
@@ -105,43 +89,58 @@ export const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose }) =
               <p className="text-xs max-w-xs mx-auto">You have not purchased any premium subscription plans yet.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {history.map((record) => {
-                const isSuccess = record.status?.toUpperCase() === 'SUCCESS';
-                const isPending = record.status?.toUpperCase() === 'PENDING';
-                
-                return (
-                  <div 
-                    key={record.paymentId} 
-                    className="border border-outline-variant rounded-xl p-4 bg-surface hover:bg-surface-container-lowest transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-on-surface uppercase tracking-wide">
-                          {record.planName} Plan
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                          isSuccess ? 'bg-primary/10 text-primary' : 
-                          isPending ? 'bg-amber-500/10 text-amber-500' : 'bg-error/10 text-error'
-                        }`}>
-                          {record.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-secondary flex flex-wrap gap-x-4">
-                        <span>Method: <strong className="font-semibold text-on-surface">{record.paymentMethod}</strong></span>
-                        <span>Date: <strong>{formatDate(record.paidAt)}</strong></span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right shrink-0">
-                      <span className="font-title-md text-sm sm:text-base font-black text-on-surface">
-                        {formatCurrency(record.amount)}
-                      </span>
-                      <div className="text-[10px] text-outline font-mono">ID: #{record.paymentId}</div>
-                    </div>
+            <div className="space-y-4">
+              {/* Summary Card */}
+              {totalSpent > 0 && (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-secondary text-[11px] font-bold uppercase tracking-wider">Total Investment (Successful Tiers)</span>
+                    <h4 className="font-title-md text-lg font-black text-primary mt-0.5">{formatCurrency(totalSpent)}</h4>
                   </div>
-                );
-              })}
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined text-[20px] icon-fill">payments</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {history.map((record) => {
+                  const isSuccess = record.status?.toUpperCase() === 'SUCCESS';
+                  const isPending = record.status?.toUpperCase() === 'PENDING';
+                  
+                  return (
+                    <div 
+                      key={record.paymentId} 
+                      className="border border-outline-variant rounded-xl p-4 bg-surface hover:bg-surface-container-lowest transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-on-surface uppercase tracking-wide">
+                            {record.planName} Plan
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            isSuccess ? 'bg-primary/10 text-primary' : 
+                            isPending ? 'bg-amber-500/10 text-amber-500' : 'bg-error/10 text-error'
+                          }`}>
+                            {record.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-secondary flex flex-wrap gap-x-4">
+                          <span>Method: <strong className="font-semibold text-on-surface">{record.paymentMethod}</strong></span>
+                          <span>Date: <strong>{formatDate(record.paidAt)}</strong></span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right shrink-0">
+                        <span className="font-title-md text-sm sm:text-base font-black text-on-surface">
+                          {formatCurrency(record.amount)}
+                        </span>
+                        <div className="text-[10px] text-outline font-mono">ID: #{record.paymentId}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -158,6 +157,26 @@ export const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose }) =
       </div>
     </div>
   );
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return dateString;
+  }
 };
 
 export default BillingModal;
