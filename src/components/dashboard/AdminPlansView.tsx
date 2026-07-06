@@ -275,6 +275,20 @@ export const AdminPlansView: React.FC = () => {
     return 'Free';
   };
 
+  const getCustomerName = (order: SystemOrder) => {
+    const foundUser = users.find(u => u.userId === order.userId || u.email.toLowerCase() === order.userEmail.toLowerCase());
+    if (foundUser && foundUser.fullName) {
+      return foundUser.fullName;
+    }
+    if (order.transactionNo && !order.transactionNo.startsWith('TXN_') && isNaN(Number(order.transactionNo)) && !order.transactionNo.includes('@')) {
+      return order.transactionNo;
+    }
+    if (order.userEmail) {
+      return order.userEmail.split('@')[0];
+    }
+    return 'Unknown User';
+  };
+
   const filteredOrders = orders.filter(
     o => o.userEmail.toLowerCase().includes(orderSearch.toLowerCase()) ||
          o.planName.toLowerCase().includes(orderSearch.toLowerCase()) ||
@@ -558,10 +572,7 @@ export const AdminPlansView: React.FC = () => {
                           : `#ORD-${1000 + order.paymentId}`}
                       </td>
                       <td className="px-6 py-4 font-semibold text-on-surface">
-                        {/* Displaying name or email prefix */}
-                        {order.transactionNo.startsWith('TXN_') || order.transactionNo.includes('@')
-                          ? order.userEmail.split('@')[0]
-                          : order.transactionNo}
+                        {getCustomerName(order)}
                       </td>
                       <td className="px-6 py-4 font-bold text-on-surface">
                         {formatCurrency(order.amount)}
