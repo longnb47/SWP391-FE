@@ -13,6 +13,7 @@ export interface TopbarProps {
   isLoggedIn?: boolean;
   onLoginClick?: () => void;
   avatarUrl?: string | null;
+  activePlanName?: string;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -27,6 +28,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   isLoggedIn = false,
   onLoginClick,
   avatarUrl,
+  activePlanName,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,10 +103,15 @@ export const Topbar: React.FC<TopbarProps> = ({
 
         {/* User Profile Avatar / Log In Button */}
         {isLoggedIn ? (
-          <div ref={menuRef} className="relative ml-2">
+          <div ref={menuRef} className="flex items-center gap-2 relative ml-2">
+            {activePlanName && (
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 rounded-md select-none">
+                {activePlanName}
+              </span>
+            )}
             <div
               onClick={() => setIsMenuOpen((open) => !open)}
-              className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden cursor-pointer border-2 border-surface-container-highest hover:border-primary transition-colors flex items-center justify-center shrink-0"
             >
               {avatarUrl ? (
                 <img

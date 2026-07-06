@@ -43,16 +43,25 @@ export interface UpdateUserSettingsRequest {
   showOnlineStatus?: boolean;
 }
 
-export interface UserDetail {
-  id: number;
+export interface AdminUser {
+  userId: number;
   fullName: string;
   email: string;
+  provider: string;
   role: 'USER' | 'ADMIN';
-  planName: string;
-  storageUsedGb: number;
-  storageLimitGb: number;
-  status: 'ACTIVE' | 'BLOCKED';
-  joinedAt: string;
+  status: 'PENDING' | 'ACTIVE' | 'BLOCKED';
+  verified: boolean;
+  bio: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export const userService = {
@@ -91,16 +100,23 @@ export const userService = {
     });
   },
 
-  async getAllUsers(): Promise<ApiResponse<BackendResponse<UserDetail[]>>> {
-    return apiClient.get<BackendResponse<UserDetail[]>>('/admin/users');
+  async getAllUsers(keyword?: string, status?: string, role?: string, page = 0, size = 100): Promise<ApiResponse<BackendResponse<AdminUsersResponse>>> {
+    let url = `/admin/users?page=${page}&size=${size}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+    if (role) url += `&role=${role}`;
+    return apiClient.get<BackendResponse<AdminUsersResponse>>(url);
   },
 
-  async updateUserRole(userId: number, role: 'USER' | 'ADMIN'): Promise<ApiResponse<BackendResponse<null>>> {
-    return apiClient.put<BackendResponse<null>>(`/admin/users/${userId}/role`, { role });
+  async getUserDetail(userId: number): Promise<ApiResponse<BackendResponse<AdminUser>>> {
+    return apiClient.get<BackendResponse<AdminUser>>(`/admin/users/${userId}`);
   },
 
-  async updateUserStatus(userId: number, status: 'ACTIVE' | 'BLOCKED'): Promise<ApiResponse<BackendResponse<null>>> {
-    return apiClient.put<BackendResponse<null>>(`/admin/users/${userId}/status`, { status });
+  async updateUserStatus(userId: number, status: 'ACTIVE' | 'BLOCKED'): Promise<ApiResponse<BackendResponse<AdminUser>>> {
+    return apiClient.request<BackendResponse<AdminUser>>(`/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
   }
 };
 

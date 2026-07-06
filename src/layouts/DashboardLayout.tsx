@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import SubscriptionModal from '../components/dashboard/SubscriptionModal';
 import BillingModal from '../components/dashboard/BillingModal';
 import { authService } from '../services/authService';
+import subscriptionService from '../services/subscriptionService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
@@ -33,8 +34,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [activePlanName, setActivePlanName] = useState<string>('');
   const isLoggedIn = !!localStorage.getItem('token');
   const { avatarUrl } = useUserProfile();
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const fetchSubscription = async () => {
+      try {
+        const response = await subscriptionService.getMySubscription();
+        if (response.data && response.data.success && response.data.data) {
+          setActivePlanName(response.data.data.planName || 'FREE');
+        }
+      } catch (err) {
+        console.error('Error fetching user subscription:', err);
+      }
+    };
+
+    fetchSubscription();
+  }, [isLoggedIn]);
 
   const handleMobileMenuToggle = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -91,6 +110,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onProfileClick={() => navigate('/profile')}
           onLogoutClick={handleLogout}
           avatarUrl={avatarUrl}
+          activePlanName={activePlanName}
         />
 
         {/* Scrollable Main Canvas */}

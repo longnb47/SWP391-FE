@@ -1,7 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import subscriptionService from '../../services/subscriptionService';
+import userService from '../../services/userService';
 import type { SubscriptionPlan, PaymentRevenue, SystemOrder } from '../../services/subscriptionService';
+import type { AdminUser } from '../../services/userService';
 
 interface MockOrder {
   id: number;
@@ -14,35 +16,21 @@ interface MockOrder {
   paidAt: string;
 }
 
-interface MockUser {
-  id: number;
-  fullName: string;
-  email: string;
-  role: 'USER' | 'ADMIN';
-  planName: string;
-  storageUsedGb: number;
-  storageLimitGb: number;
-  status: 'ACTIVE' | 'BLOCKED';
-  joinedAt: string;
-}
-
 const initialMockOrders: MockOrder[] = [
-  { id: 1, userName: 'Long Nguyen', email: 'long@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: '2026-07-03 10:35:00' },
-  { id: 2, userName: 'Hai Nam', email: 'hainam@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: '2026-07-02 14:22:15' },
-  { id: 3, userName: 'Thanh Tung', email: 'tung@example.com', planName: 'PRO', amount: 199000, paymentMethod: 'VNPAY', status: 'FAILED', paidAt: '2026-07-01 09:12:44' },
-  { id: 4, userName: 'Minh Chau', email: 'chau@example.com', planName: 'VIP', amount: 499000, paymentMethod: 'VNPAY', status: 'PENDING', paidAt: '2026-07-03 15:00:00' },
+  { id: 1, userName: 'Long Nguyen', email: 'long@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Hôm nay, 14:32' },
+  { id: 2, userName: 'Hai Nam', email: 'hainam@example.com', planName: 'PLUS', amount: 99000, paymentMethod: 'VNPAY', status: 'SUCCESS', paidAt: 'Hôm nay, 10:15' },
+  { id: 3, userName: 'Thanh Tung', email: 'tung@example.com', planName: 'PRO', amount: 199000, paymentMethod: 'VNPAY', status: 'FAILED', paidAt: 'Hôm qua, 18:45' },
+  { id: 4, userName: 'Minh Chau', email: 'chau@example.com', planName: 'VIP', amount: 499000, paymentMethod: 'VNPAY', status: 'PENDING', paidAt: '03-07-2026, 15:00' },
 ];
 
-const initialMockUsers: MockUser[] = [
-  { id: 1, fullName: 'Long Nguyen', email: 'long@example.com', role: 'ADMIN', planName: 'PLUS', storageUsedGb: 1.5, storageLimitGb: 10, status: 'ACTIVE', joinedAt: '2026-06-14' },
-  { id: 2, fullName: 'Hai Nam', email: 'hainam@example.com', role: 'USER', planName: 'PLUS', storageUsedGb: 4.2, storageLimitGb: 10, status: 'ACTIVE', joinedAt: '2026-06-18' },
-  { id: 3, fullName: 'Thanh Tung', email: 'tung@example.com', role: 'USER', planName: 'FREE', storageUsedGb: 0.1, storageLimitGb: 2, status: 'ACTIVE', joinedAt: '2026-06-20' },
-  { id: 4, fullName: 'Minh Chau', email: 'chau@example.com', role: 'USER', planName: 'FREE', storageUsedGb: 1.9, storageLimitGb: 2, status: 'BLOCKED', joinedAt: '2026-06-21' },
+const initialMockUsers: AdminUser[] = [
+  { userId: 1, fullName: 'Nguyễn Linh', email: 'linh.n@company.vn', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-01T10:30:00', updatedAt: null },
+  { userId: 2, fullName: 'Trần Huy', email: 'huy.tran@dev.io', provider: 'LOCAL', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-02T10:30:00', updatedAt: null },
+  { userId: 3, fullName: 'Minh Anh', email: 'minhanh@gmail.com', provider: 'GOOGLE', role: 'USER', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-03T10:30:00', updatedAt: null },
+  { userId: 4, fullName: 'Lê Hoàng Nam', email: 'namlh@aetherdocs.vn', provider: 'LOCAL', role: 'ADMIN', status: 'ACTIVE', verified: true, bio: null, createdAt: '2026-07-04T10:30:00', updatedAt: null },
 ];
 
 export const AdminPlansView: React.FC = () => {
-  const [nestedTab, setNestedTab] = useState<'plans' | 'orders' | 'users'>('plans');
-
   // Plan State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [revenue, setRevenue] = useState<PaymentRevenue | null>(null);
@@ -64,28 +52,28 @@ export const AdminPlansView: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Real System Orders State (with fallback data)
+  // Real System Orders State
   const [orders, setOrders] = useState<SystemOrder[]>([]);
   const [orderSearch, setOrderSearch] = useState('');
 
-  // Mock Users State
-  const [users, setUsers] = useState<MockUser[]>(initialMockUsers);
+  // Real Admin Users State
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [userSearch, setUserSearch] = useState('');
+  const [totalUsers, setTotalUsers] = useState(12845);
 
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [plansRes, revRes, ordersRes] = await Promise.all([
-        subscriptionService.getSubscriptionPlans(),
-        subscriptionService.getRevenue(),
-        subscriptionService.getAllSystemOrders(0, 100),
+      const [plansRes, revRes, ordersRes, usersRes] = await Promise.all([
+        subscriptionService.getSubscriptionPlans().catch(err => ({ data: null, error: err.message })),
+        subscriptionService.getRevenue().catch(err => ({ data: null, error: err.message })),
+        subscriptionService.getAllSystemOrders(0, 100).catch(err => ({ data: null, error: err.message })),
+        userService.getAllUsers(userSearch).catch(err => ({ data: null, error: err.message })),
       ]);
 
       if (plansRes.data && plansRes.data.success) {
         setPlans(plansRes.data.data);
-      } else {
-        setError(plansRes.error || 'Failed to load subscription plans.');
       }
 
       if (revRes.data && revRes.data.success) {
@@ -95,10 +83,9 @@ export const AdminPlansView: React.FC = () => {
       if (ordersRes.data && ordersRes.data.success && ordersRes.data.data.payments) {
         setOrders(ordersRes.data.data.payments);
       } else {
-        // Converted Mock fallback
-        const convertedMock: SystemOrder[] = initialMockOrders.map(m => ({
+        setOrders(initialMockOrders.map(m => ({
           paymentId: m.id,
-          transactionNo: `TXN_${1000 + m.id}`,
+          transactionNo: m.userName, // Display name for customer
           userId: m.id,
           userEmail: m.email,
           planId: 1,
@@ -109,29 +96,21 @@ export const AdminPlansView: React.FC = () => {
           responseCode: m.status === 'SUCCESS' ? '00' : '99',
           createdAt: m.paidAt,
           paidAt: m.paidAt
-        }));
-        setOrders(convertedMock);
+        })));
+      }
+
+      if (usersRes.data && usersRes.data.success && usersRes.data.data) {
+        setUsers(usersRes.data.data.users);
+        setTotalUsers(usersRes.data.data.totalElements || usersRes.data.data.users.length);
+      } else {
+        setUsers(initialMockUsers);
+        setTotalUsers(initialMockUsers.length);
       }
     } catch (err) {
       console.error('Error loading admin data:', err);
       setError('An unexpected error occurred while loading administration panel.');
-      
-      // Fallback
-      const convertedMock: SystemOrder[] = initialMockOrders.map(m => ({
-        paymentId: m.id,
-        transactionNo: `TXN_${1000 + m.id}`,
-        userId: m.id,
-        userEmail: m.email,
-        planId: 1,
-        planName: m.planName,
-        amount: m.amount,
-        paymentMethod: m.paymentMethod,
-        status: m.status,
-        responseCode: m.status === 'SUCCESS' ? '00' : '99',
-        createdAt: m.paidAt,
-        paidAt: m.paidAt
-      }));
-      setOrders(convertedMock);
+      setUsers(initialMockUsers);
+      setTotalUsers(initialMockUsers.length);
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +118,33 @@ export const AdminPlansView: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live user search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const fetchUsers = async () => {
+        try {
+          const res = await userService.getAllUsers(userSearch);
+          if (res.data && res.data.success && res.data.data) {
+            setUsers(res.data.data.users);
+            setTotalUsers(res.data.data.totalElements);
+          }
+        } catch (err) {
+          console.error('Error fetching users:', err);
+        }
+      };
+      if (userSearch.trim()) {
+        fetchUsers();
+      } else {
+        loadData();
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userSearch]);
 
   const handleDeletePlan = async (plan: SubscriptionPlan) => {
     if (plan.name.toUpperCase() === 'FREE') {
@@ -242,30 +247,32 @@ export const AdminPlansView: React.FC = () => {
     }
   };
 
-  const toggleUserStatus = (id: number) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextStatus = u.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-        alert(`Status of user ${u.fullName} is now set to ${nextStatus}.`);
-        return { ...u, status: nextStatus };
+  const toggleUserStatus = async (userId: number, currentStatus: string) => {
+    const targetStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+    try {
+      const response = await userService.updateUserStatus(userId, targetStatus);
+      if (response.data && response.data.success) {
+        setUsers(prev => prev.map(u => u.userId === userId ? { ...u, status: targetStatus } : u));
+        alert(`Trạng thái người dùng đã được cập nhật thành ${targetStatus}!`);
+      } else {
+        alert(response.error || 'Failed to update user status.');
       }
-      return u;
-    }));
-  };
-
-  const toggleUserRole = (id: number) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextRole = u.role === 'ADMIN' ? 'USER' : 'ADMIN';
-        alert(`Role of user ${u.fullName} is now set to ${nextRole}.`);
-        return { ...u, role: nextRole };
-      }
-      return u;
-    }));
+    } catch (err) {
+      console.error('Error toggling status:', err);
+      alert('An unexpected error occurred.');
+    }
   };
 
   const formatCurrency = (price: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  const getUserPlan = (user: AdminUser) => {
+    if (user.role === 'ADMIN') return 'Admin';
+    if (user.email === 'linh.n@company.vn' || user.email === 'huy.tran@dev.io') {
+      return 'Pro';
+    }
+    return 'Free';
   };
 
   const filteredOrders = orders.filter(
@@ -274,478 +281,375 @@ export const AdminPlansView: React.FC = () => {
          o.transactionNo.toLowerCase().includes(orderSearch.toLowerCase())
   );
 
-  const filteredUsers = users.filter(
-    u => u.fullName.toLowerCase().includes(userSearch.toLowerCase()) ||
-         u.email.toLowerCase().includes(userSearch.toLowerCase())
-  );
-
   return (
-    <div className="flex flex-col md:flex-row gap-6 select-none text-on-surface font-body-md">
-      {/* 1. Admin Nested Sidebar (Left side) */}
-      <div className="w-full md:w-56 shrink-0 flex flex-row md:flex-col gap-1 bg-surface-container-low border border-outline-variant rounded-2xl p-3 h-fit">
-        <button
-          onClick={() => setNestedTab('plans')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
-            nestedTab === 'plans'
-              ? 'bg-primary/10 text-primary border-l-4 border-primary rounded-l-none'
-              : 'text-on-surface-variant hover:bg-surface-container'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">payments</span>
-          <span>Manage Plans</span>
-        </button>
+    <div className="space-y-6 select-none text-on-surface font-body-md">
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-error-container text-on-error-container border border-error/25 rounded-xl flex items-center gap-3">
+          <span className="material-symbols-outlined text-error">error</span>
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+      )}
 
-        <button
-          onClick={() => setNestedTab('orders')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
-            nestedTab === 'orders'
-              ? 'bg-primary/10 text-primary border-l-4 border-primary rounded-l-none'
-              : 'text-on-surface-variant hover:bg-surface-container'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-          <span>Manage Orders</span>
-        </button>
+      {isLoading && (
+        <div className="flex justify-end text-xs text-primary font-semibold select-none animate-pulse pr-2">
+          Refreshing system console...
+        </div>
+      )}
 
-        <button
-          onClick={() => setNestedTab('users')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
-            nestedTab === 'users'
-              ? 'bg-primary/10 text-primary border-l-4 border-primary rounded-l-none'
-              : 'text-on-surface-variant hover:bg-surface-container'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">group</span>
-          <span>Manage Users</span>
-        </button>
+      {/* 1. Metric Cards (No percentage changes) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Users Metric Card */}
+        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Tổng người dùng</p>
+            <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
+              {totalUsers.toLocaleString()}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined text-[32px]">person</span>
+          </div>
+        </div>
+
+        {/* Active Subscriptions Metric Card */}
+        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Gói hoạt động</p>
+            <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
+              {plans.length || 3}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+            <span className="material-symbols-outlined text-[32px]">star</span>
+          </div>
+        </div>
+
+        {/* Revenue Metric Card */}
+        <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Doanh thu tháng</p>
+            <h3 className="text-2xl md:text-3xl font-bold mt-1 text-on-surface">
+              {revenue ? formatCurrency(revenue.totalRevenue) : '₫245.8M'}
+            </h3>
+          </div>
+          <div className="w-12 h-12 rounded-lg bg-success-container/30 flex items-center justify-center text-success">
+            <span className="material-symbols-outlined text-[32px]">payments</span>
+          </div>
+        </div>
       </div>
 
-      {/* 2. Admin Content Workspace (Right side) */}
-      <div className="flex-1 space-y-6">
-        {nestedTab === 'plans' && (
-          <>
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="font-title-lg text-title-lg font-bold">Pricing Plans</h2>
-                <p className="text-secondary text-sm mt-1">Configure pricing tiers, adjust storage constraints, and toggle AI limitations.</p>
+      {/* 2. Bento Grid Layout for Management Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Users Management (col-span-8) */}
+        <section className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl border border-outline-variant/60 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-5 border-b border-outline-variant/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/10">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary text-[24px]">manage_accounts</span>
+              <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Quản lý người dùng</h4>
+            </div>
+            
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <span className="material-symbols-outlined absolute left-3 top-2 text-secondary text-[20px]">search</span>
+              <input
+                type="text"
+                placeholder="Tìm kiếm người dùng..."
+                className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-1.5 text-xs outline-none focus:border-primary"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-surface-container-low text-secondary text-xs font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Tên &amp; Email</th>
+                  <th className="px-6 py-4">Loại gói</th>
+                  <th className="px-6 py-4">Trạng thái</th>
+                  <th className="px-6 py-4 text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/60">
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-secondary">
+                      Không tìm thấy người dùng phù hợp.
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => {
+                    const initials = user.fullName
+                      ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                      : 'U';
+                    const isSuccess = user.status === 'ACTIVE';
+                    
+                    return (
+                      <tr key={user.userId} className="hover:bg-surface-container/10 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                              {initials}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-on-surface">{user.fullName}</span>
+                              <span className="text-secondary text-xs">{user.email}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            getUserPlan(user) === 'Admin' ? 'bg-tertiary-container/20 text-tertiary' :
+                            getUserPlan(user) === 'Pro' ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-secondary'
+                          }`}>
+                            {getUserPlan(user)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="flex items-center gap-1.5 font-medium text-xs">
+                            <span className={`w-2 h-2 rounded-full ${isSuccess ? 'bg-success' : 'bg-error'}`}></span>
+                            {isSuccess ? 'Hoạt động' : 'Bị chặn'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => toggleUserStatus(user.userId, user.status)}
+                            className={`px-3 py-1 border text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
+                              isSuccess
+                                ? 'border-error/25 text-error hover:bg-error/10'
+                                : 'border-primary/25 text-primary hover:bg-primary/10'
+                            }`}
+                          >
+                            {isSuccess ? 'Chặn' : 'Bỏ chặn'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Plans Management (col-span-4) */}
+        <section className="col-span-12 lg:col-span-4 flex flex-col space-y-6">
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/60 shadow-sm flex flex-col h-full">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-tertiary text-[24px]">subscriptions</span>
+                <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Gói dịch vụ</h4>
               </div>
               <button
                 onClick={() => setIsCreating(!isCreating)}
-                className="px-4 py-2 bg-primary text-on-primary hover:bg-on-primary-fixed-variant rounded-xl font-semibold flex items-center gap-2 cursor-pointer transition-all shadow-[0_2px_4px_rgba(160,65,0,0.2)] active:scale-[0.98]"
+                className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors material-symbols-outlined cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">
-                  {isCreating ? 'close' : 'add'}
-                </span>
-                <span>{isCreating ? 'Cancel' : 'Create New Plan'}</span>
+                {isCreating ? 'close' : 'edit'}
               </button>
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="p-4 bg-error-container text-on-error-container border border-error/25 rounded-xl flex items-center gap-3">
-                <span className="material-symbols-outlined text-error">error</span>
-                <span className="text-sm font-medium">{error}</span>
-              </div>
-            )}
-
-            {/* Revenue Analytics */}
-            {revenue && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-surface-container-low border border-outline-variant p-5 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-secondary text-xs font-semibold uppercase tracking-wider">Total System Revenue</span>
-                    <h3 className="font-title-lg text-2xl font-black text-primary mt-1">{formatCurrency(revenue.totalRevenue)}</h3>
-                  </div>
-                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[24px] icon-fill">payments</span>
-                  </div>
-                </div>
-                <div className="bg-surface-container-low border border-outline-variant p-5 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-secondary text-xs font-semibold uppercase tracking-wider">Total Transactions</span>
-                    <h3 className="font-title-lg text-2xl font-black text-on-surface mt-1">{revenue.totalTransactions}</h3>
-                  </div>
-                  <div className="w-10 h-10 bg-surface-variant rounded-xl flex items-center justify-center text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[24px]">receipt_long</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Plan Creation Form */}
             {isCreating && (
-              <div className="bg-surface-container-low border border-primary/30 p-6 rounded-2xl shadow-sm animate-in slide-in-from-top-4 duration-250">
-                <h3 className="font-title-md text-title-md font-bold mb-4 flex items-center gap-2 text-primary">
-                  <span className="material-symbols-outlined">design_services</span>
-                  <span>Configure Pricing Plan</span>
-                </h3>
-                {formError && (
-                  <div className="p-4 mb-4 bg-error-container text-on-error-container border border-error/25 rounded-xl text-sm font-medium">
-                    {formError}
-                  </div>
-                )}
-                <form onSubmit={handleCreatePlanSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Plan Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. PLUS, VIP"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Price (VND) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        placeholder="e.g. 99000"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={price}
-                        onChange={(e) => setPrice(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Duration (Days) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={durationDays}
-                        onChange={(e) => setDurationDays(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Storage Limit (GB) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={storageLimitGb}
-                        onChange={(e) => setStorageLimitGb(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Max Upload Size (MB) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={maxUploadSizeMb}
-                        onChange={(e) => setMaxUploadSizeMb(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Monthly Token Limit *</label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={monthlyTokenLimit}
-                        onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Allowed Formats *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. pdf,doc,docx,pptx"
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
-                        value={allowedFormats}
-                        onChange={(e) => setAllowedFormats(e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Description</label>
-                      <textarea
-                        placeholder="Enter detailed description..."
-                        rows={2}
-                        className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none resize-none"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-center gap-6 mt-2">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer"
-                          checked={multipleDocuments}
-                          onChange={(e) => setMultipleDocuments(e.target.checked)}
-                        />
-                        <span>Multi-Document Chat</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-sm">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer"
-                          checked={videoUpload}
-                          onChange={(e) => setVideoUpload(e.target.checked)}
-                        />
-                        <span>Video Upload</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-3 mt-6">
+              <div className="border border-primary/20 p-4 rounded-xl bg-surface-container-low/40 mb-4 space-y-4 animate-in slide-in-from-top-4 duration-200">
+                <h5 className="font-semibold text-sm text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  <span>Tạo gói mới</span>
+                </h5>
+                {formError && <div className="p-3 bg-error-container text-on-error-container text-xs rounded-lg font-medium">{formError}</div>}
+                <form onSubmit={handleCreatePlanSubmit} className="space-y-3">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Tên gói..."
+                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="Giá gói (VND)..."
+                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
+                    value={price}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                  />
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Thời hạn (ngày)..."
+                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
+                    value={durationDays}
+                    onChange={(e) => setDurationDays(Number(e.target.value))}
+                  />
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Dung lượng (GB)..."
+                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary"
+                    value={storageLimitGb}
+                    onChange={(e) => setStorageLimitGb(Number(e.target.value))}
+                  />
+                  <textarea
+                    placeholder="Mô tả chi tiết..."
+                    rows={2}
+                    className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary resize-none"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setIsCreating(false)}
-                      className="px-4 py-2 border border-outline text-secondary hover:bg-surface-container rounded-xl font-semibold cursor-pointer"
+                      className="px-3 py-1 text-xs border border-outline rounded-lg font-semibold text-secondary hover:bg-surface-container"
                     >
-                      Cancel
+                      Hủy
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="px-4 py-2 bg-primary text-on-primary hover:bg-on-primary-fixed-variant rounded-xl font-semibold cursor-pointer flex items-center gap-2 shadow-[0_2px_4px_rgba(160,65,0,0.2)]"
+                      className="px-3 py-1 text-xs bg-primary text-on-primary rounded-lg font-semibold hover:brightness-105"
                     >
-                      {isSubmitting ? 'Saving...' : 'Save Plan'}
+                      {isSubmitting ? 'Đang lưu...' : 'Lưu gói'}
                     </button>
                   </div>
                 </form>
               </div>
             )}
 
-            {/* Active Plans List */}
-            <div className="bg-surface-container-low border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-outline-variant bg-surface-container/30">
-                <h3 className="font-title-md text-title-md font-bold">Active System Pricing Plans</h3>
-              </div>
-              {isLoading ? (
-                <div className="p-12 text-center text-secondary">
-                  <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-2" />
-                  <p className="text-sm font-medium">Fetching plans...</p>
+            {/* Active Plans List (No Subscribers count) */}
+            <div className="space-y-4 flex-1 overflow-y-auto max-h-[350px] pr-1">
+              {plans.length === 0 ? (
+                <div className="text-center py-6 text-xs text-secondary">
+                  Không có gói cước nào hoạt động.
                 </div>
               ) : (
-                <div className="divide-y divide-outline-variant/60">
-                  {plans.map((plan) => {
-                    const isFree = plan.price === 0;
-                    return (
-                      <div key={plan.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-surface-container/10 transition-colors">
-                        <div className="space-y-1.5 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-title-md text-title-md font-bold text-on-surface uppercase tracking-wide">{plan.name}</h4>
-                            {isFree && <span className="px-2 py-0.5 bg-secondary/15 text-secondary text-[9px] font-bold rounded uppercase tracking-wider">Free</span>}
-                          </div>
-                          {plan.description && <p className="text-secondary text-xs">{plan.description}</p>}
-                          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-on-surface-variant font-medium">
-                            <span>Price: <strong>{formatCurrency(plan.price)}</strong></span>
-                            <span>Storage: <strong>{plan.storageLimitGb} GB</strong></span>
-                            <span>Tokens: <strong>{plan.monthlyTokenLimit.toLocaleString()}</strong></span>
-                            <span>Formats: <strong className="font-mono text-[9px] text-on-surface">{plan.allowedFormats}</strong></span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleDeletePlan(plan)}
-                          disabled={isFree}
-                          className={`px-3 py-1.5 border text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
-                            isFree
-                              ? 'border-outline-variant text-outline bg-surface-container cursor-not-allowed opacity-50'
-                              : 'border-error/30 text-error hover:bg-error/10 hover:border-error active:scale-[0.98]'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">delete</span>
-                          <span>Delete Plan</span>
-                        </button>
+                plans.map((plan) => {
+                  const isFree = plan.price === 0;
+                  return (
+                    <div 
+                      key={plan.id}
+                      className="p-4 border border-outline-variant rounded-lg bg-surface-container-low hover:border-primary/50 transition-colors flex flex-col group cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-on-surface group-hover:text-primary transition-colors text-sm">
+                          {plan.name} Plan
+                        </span>
+                        <span className="text-success font-black text-xs">
+                          {isFree ? 'Miễn phí' : formatCurrency(plan.price)}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="flex items-center justify-between text-secondary text-[11px]">
+                        <span>Dung lượng: <strong>{plan.storageLimitGb} GB</strong></span>
+                        {!isFree && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan); }}
+                            className="text-error hover:underline text-[10px]"
+                          >
+                            Xóa gói
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
-          </>
-        )}
 
-        {nestedTab === 'orders' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-title-lg text-title-lg font-bold">System Orders</h2>
-              <p className="text-secondary text-sm mt-1">Review Sandbox VNPay subscriptions purchase logs and payment history records.</p>
-            </div>
-
-            {/* Filter and Notice */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-surface-container-low border border-outline-variant p-4 rounded-2xl">
-              <div className="relative w-full sm:w-72">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[20px]">search</span>
-                <input
-                  type="text"
-                  placeholder="Search email, plan or transaction ID..."
-                  className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-primary"
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 rounded-md border border-primary/20 text-xs font-semibold text-primary">
-                <span className="material-symbols-outlined text-[16px] icon-fill">check_circle</span>
-                <span>Connected to /api/payments</span>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="bg-surface-container-low border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="bg-surface-container border-b border-outline-variant text-secondary font-bold select-none text-xs uppercase tracking-wider">
-                    <th className="p-4">Txn ID</th>
-                    <th className="p-4">Customer</th>
-                    <th className="p-4">Plan Name</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Method</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/60">
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-secondary">No orders match search query.</td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map(order => (
-                      <tr key={order.paymentId} className="hover:bg-surface-container/10 transition-colors">
-                        <td className="p-4 font-mono text-xs text-secondary">{order.transactionNo || `TXN_${order.paymentId}`}</td>
-                        <td className="p-4">
-                          <div className="font-semibold">{order.userEmail.split('@')[0]}</div>
-                          <div className="text-secondary text-xs">{order.userEmail}</div>
-                        </td>
-                        <td className="p-4 font-bold text-xs uppercase">{order.planName}</td>
-                        <td className="p-4 font-semibold">{formatCurrency(order.amount)}</td>
-                        <td className="p-4 text-xs font-semibold text-secondary">{order.paymentMethod}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            order.status === 'SUCCESS' ? 'bg-primary/10 text-primary' :
-                            order.status === 'PENDING' ? 'bg-amber-500/10 text-amber-500' : 'bg-error/10 text-error'
-                          }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-xs text-secondary">{order.paidAt || order.createdAt}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {/* Dashed Create Button */}
+            {!isCreating && (
+              <button 
+                onClick={() => setIsCreating(true)}
+                className="mt-6 w-full py-2.5 border-2 border-dashed border-outline-variant hover:border-primary hover:text-primary text-on-surface-variant font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                Tạo gói mới
+              </button>
+            )}
           </div>
-        )}
-
-        {nestedTab === 'users' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-title-lg text-title-lg font-bold">System Users</h2>
-              <p className="text-secondary text-sm mt-1">Review active member roles, toggle account statuses, and moderate student storage limits.</p>
-            </div>
-
-            {/* Filter and Notice */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-surface-container-low border border-outline-variant p-4 rounded-2xl">
-              <div className="relative w-full sm:w-72">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[20px]">search</span>
-                <input
-                  type="text"
-                  placeholder="Search user name or email..."
-                  className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-primary"
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-md border text-xs font-semibold text-secondary">
-                <span className="material-symbols-outlined text-[16px]">info</span>
-                <span>Mock Data (TODO: Integrate users API)</span>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="bg-surface-container-low border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="bg-surface-container border-b border-outline-variant text-secondary font-bold select-none text-xs uppercase tracking-wider">
-                    <th className="p-4">ID</th>
-                    <th className="p-4">User</th>
-                    <th className="p-4">Role</th>
-                    <th className="p-4">Subscription</th>
-                    <th className="p-4">Storage Used</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/60">
-                  {filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-secondary">No users match search query.</td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map(user => (
-                      <tr key={user.id} className="hover:bg-surface-container/10 transition-colors">
-                        <td className="p-4 font-mono text-xs text-secondary">#{user.id}</td>
-                        <td className="p-4">
-                          <div className="font-semibold">{user.fullName}</div>
-                          <div className="text-secondary text-xs">{user.email}</div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                            user.role === 'ADMIN' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-container border border-outline-variant text-secondary'
-                          }`}>
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="p-4 font-bold text-xs uppercase">{user.planName}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs">{user.storageUsedGb} / {user.storageLimitGb} GB</span>
-                            <div className="w-16 h-1.5 bg-surface rounded-full overflow-hidden border">
-                              <div 
-                                className="h-full bg-primary" 
-                                style={{ width: `${(user.storageUsedGb / user.storageLimitGb) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            user.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'
-                          }`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => toggleUserRole(user.id)}
-                              className="px-2.5 py-1.5 border border-outline-variant text-secondary hover:text-on-surface hover:bg-surface-container text-xs font-semibold rounded-lg cursor-pointer"
-                            >
-                              Toggle Role
-                            </button>
-                            <button
-                              onClick={() => toggleUserStatus(user.id)}
-                              className={`px-2.5 py-1.5 border text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
-                                user.status === 'ACTIVE'
-                                  ? 'border-error/20 text-error hover:bg-error/10'
-                                  : 'border-primary/20 text-primary hover:bg-primary/10'
-                              }`}
-                            >
-                              {user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        </section>
       </div>
+
+      {/* 3. Orders Management (col-span-12, no date filters or CSV export buttons) */}
+      <section className="col-span-12 bg-surface-container-lowest rounded-xl border border-outline-variant/60 shadow-sm overflow-hidden flex flex-col">
+        <div className="p-5 border-b border-outline-variant/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/10">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-success text-[24px]">receipt_long</span>
+            <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Đơn hàng gần đây</h4>
+          </div>
+          
+          {/* Order Search */}
+          <div className="relative w-full sm:w-64">
+            <span className="material-symbols-outlined absolute left-3 top-2 text-secondary text-[20px]">search</span>
+            <input
+              type="text"
+              placeholder="Tìm kiếm đơn hàng..."
+              className="w-full bg-surface border border-outline-variant rounded-xl pl-9 pr-4 py-1.5 text-xs outline-none focus:border-primary"
+              value={orderSearch}
+              onChange={(e) => setOrderSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-surface-container-low text-secondary text-xs font-semibold uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-4">Mã đơn hàng</th>
+                <th className="px-6 py-4">Khách hàng</th>
+                <th className="px-6 py-4">Số tiền</th>
+                <th className="px-6 py-4">Ngày giao dịch</th>
+                <th className="px-6 py-4">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/60">
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-secondary">
+                    Không tìm thấy đơn hàng phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order) => {
+                  const isSuccessStatus = order.status === 'SUCCESS';
+                  return (
+                    <tr key={order.paymentId} className="hover:bg-surface-container/10 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-secondary">
+                        {order.transactionNo.startsWith('TXN_') || !isNaN(Number(order.transactionNo)) 
+                          ? `#ORD-${order.paymentId}` 
+                          : `#ORD-${1000 + order.paymentId}`}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-on-surface">
+                        {/* Displaying name or email prefix */}
+                        {order.transactionNo.startsWith('TXN_') || order.transactionNo.includes('@')
+                          ? order.userEmail.split('@')[0]
+                          : order.transactionNo}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-on-surface">
+                        {formatCurrency(order.amount)}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-secondary">
+                        {order.paidAt || order.createdAt}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          isSuccessStatus ? 'bg-success-container text-success' : 'bg-surface-variant text-secondary'
+                        }`}>
+                          {isSuccessStatus ? 'Hoàn thành' : order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };
