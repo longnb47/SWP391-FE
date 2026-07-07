@@ -4,6 +4,8 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
 import { documentService } from '../services/documentService';
+import { offlineDocumentService } from '../services/offlineDocumentService';
+import { deleteOfflineDocument, getOfflineDocument, isOfflineDocumentSaved } from '../lib/offlineDocumentDb';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
@@ -65,12 +67,28 @@ export const FileDetailPage: React.FC = () => {
     downloadUrl: string | null;
     contentType: string | null;
     status: string;
+    userId?: number | null;
+    fileSizeBytes?: number;
+    uploadedAt?: string;
   } | null>(null);
   const [storage, setStorage] = useState<StorageUsage | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
+  const [isOfflineSaved, setIsOfflineSaved] = useState(false);
+  const [isOfflineActionLoading, setIsOfflineActionLoading] = useState(false);
+  const [offlineUnavailableMessage, setOfflineUnavailableMessage] = useState<string | null>(null);
 
   const isLoggedIn = !!localStorage.getItem('token');
+  const currentUserId = Number(localStorage.getItem('userId')) || null;
+
+  useEffect(() => {
+    return () => {
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+      }
+    };
+  }, [localBlobUrl]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -81,7 +99,49 @@ export const FileDetailPage: React.FC = () => {
 
     const loadDetails = async () => {
       setIsLoading(true);
-      
+      setOfflineUnavailableMessage(null);
+      setLocalBlobUrl(null);
+      setIsOfflineSaved(false);
+
+      const numericId = Number(id);
+      if (!isNaN(numericId) && !navigator.onLine) {
+        try {
+          const offlineRecord = await getOfflineDocument(numericId, currentUserId);
+          if (offlineRecord) {
+            const blobUrl = URL.createObjectURL(offlineRecord.blob);
+            setLocalBlobUrl(blobUrl);
+            setIsOfflineSaved(true);
+            setDocumentDetails({
+              id: offlineRecord.documentId,
+              name: offlineRecord.fileName,
+              size: formatBytes(offlineRecord.fileSize),
+              lastModified: new Date(offlineRecord.lastModified).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              }),
+              previewUrl: null,
+              downloadUrl: null,
+              contentType: offlineRecord.contentType,
+              status: 'READY',
+              userId: offlineRecord.userId,
+              fileSizeBytes: offlineRecord.fileSize,
+              uploadedAt: offlineRecord.lastModified,
+            });
+          } else {
+            setDocumentDetails(null);
+            setOfflineUnavailableMessage('Document unavailable offline. Reconnect and save it for offline use first.');
+          }
+        } catch (e) {
+          console.error('Failed to load offline document:', e);
+          setDocumentDetails(null);
+          setOfflineUnavailableMessage('Document unavailable offline. The saved copy could not be opened.');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       // Load user documents to dynamically calculate sidebar storage usage
       try {
         const listResponse = await documentService.getMyDocuments();
@@ -93,7 +153,6 @@ export const FileDetailPage: React.FC = () => {
         console.error('Failed to load storage details:', e);
       }
 
-      const numericId = Number(id);
       if (!isNaN(numericId)) {
         // Fetch details from backend API
         let response;
@@ -193,7 +252,11 @@ export const FileDetailPage: React.FC = () => {
             downloadUrl,
             contentType,
             status: doc.status,
+            userId: doc.userId,
+            fileSizeBytes: doc.fileSize,
+            uploadedAt: doc.uploadedAt,
           });
+          setIsOfflineSaved(await isOfflineDocumentSaved(doc.documentId, currentUserId));
           setIsLoading(false);
           return;
         }
@@ -211,6 +274,7 @@ export const FileDetailPage: React.FC = () => {
           downloadUrl: null,
           contentType: listFile.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           status: 'READY',
+          userId: null,
         });
       } else {
         const suggestedFile = mockSuggestedItems.find((f) => f.id === id);
@@ -224,6 +288,7 @@ export const FileDetailPage: React.FC = () => {
             downloadUrl: null,
             contentType: suggestedFile.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             status: 'READY',
+            userId: null,
           });
         } else {
           // Default fallback document
@@ -236,6 +301,7 @@ export const FileDetailPage: React.FC = () => {
             downloadUrl: null,
             contentType: 'application/pdf',
             status: 'READY',
+            userId: null,
           });
         }
       }
@@ -243,7 +309,7 @@ export const FileDetailPage: React.FC = () => {
     };
 
     loadDetails();
-  }, [id, isLoggedIn, navigate]);
+  }, [id, isLoggedIn, navigate, currentUserId]);
 
   const handleTabChange = (tabName: string) => {
     if (tabName !== 'AI Assistant' && tabName !== 'Settings') {
@@ -251,15 +317,81 @@ export const FileDetailPage: React.FC = () => {
     }
   };
 
+  const canUseOnlineChat = navigator.onLine;
+
+  const handleSaveOffline = async () => {
+    if (!documentDetails?.id || documentDetails.fileSizeBytes == null || !documentDetails.uploadedAt) {
+      alert('This document cannot be saved offline yet.');
+      return;
+    }
+
+    if (!navigator.onLine) {
+      alert('Reconnect to the internet before saving a document offline.');
+      return;
+    }
+
+    setIsOfflineActionLoading(true);
+    try {
+      await offlineDocumentService.saveDocumentForOffline({
+        documentId: documentDetails.id,
+        userId: currentUserId,
+        fileName: documentDetails.name,
+        contentType: documentDetails.contentType || 'application/octet-stream',
+        fileSize: documentDetails.fileSizeBytes,
+        lastModified: documentDetails.uploadedAt,
+      });
+      setIsOfflineSaved(true);
+      alert(`"${documentDetails.name}" is now available offline.`);
+    } catch (e) {
+      console.error('Failed to save document offline:', e);
+      alert(e instanceof Error ? e.message : 'Failed to save document offline.');
+    } finally {
+      setIsOfflineActionLoading(false);
+    }
+  };
+
+  const handleRemoveOffline = async () => {
+    if (!documentDetails?.id) return;
+
+    setIsOfflineActionLoading(true);
+    try {
+      await deleteOfflineDocument(documentDetails.id, currentUserId);
+      setIsOfflineSaved(false);
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+        setLocalBlobUrl(null);
+      }
+      if (!navigator.onLine) {
+        setDocumentDetails(null);
+        setOfflineUnavailableMessage('Document unavailable offline. Reconnect and save it for offline use first.');
+      }
+      alert(`Offline copy removed for "${documentDetails.name}".`);
+    } catch (e) {
+      console.error('Failed to remove offline document:', e);
+      alert('Failed to remove the offline copy.');
+    } finally {
+      setIsOfflineActionLoading(false);
+    }
+  };
+
   if (isLoading || !documentDetails) {
     return (
       <DashboardLayout activeTab={fromTab} onTabChange={handleTabChange} fluid={true} storage={storage}>
         <div className="flex-1 flex flex-col items-center justify-center py-40 gap-3 w-full bg-surface">
-          <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="font-body-md text-secondary select-none">Loading document details...</span>
+          {offlineUnavailableMessage ? (
+            <>
+              <span className="material-symbols-outlined text-[44px] text-secondary select-none">cloud_off</span>
+              <span className="font-body-md text-secondary select-none">{offlineUnavailableMessage}</span>
+            </>
+          ) : (
+            <>
+              <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="font-body-md text-secondary select-none">Loading document details...</span>
+            </>
+          )}
         </div>
       </DashboardLayout>
     );
@@ -272,13 +404,14 @@ export const FileDetailPage: React.FC = () => {
       fluid={true}
       storage={storage}
     >
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden h-full w-full bg-surface">
+      <div className="relative flex flex-col lg:flex-row flex-1 overflow-hidden h-full w-full bg-surface">
         {/* Left Side: Document Preview (takes up flex-[6] or full-width) */}
         <DocumentPreview
           fileName={documentDetails.name}
           fileSize={documentDetails.size}
           lastModified={documentDetails.lastModified}
           previewUrl={documentDetails.previewUrl}
+          localBlobUrl={localBlobUrl}
           downloadUrl={documentDetails.downloadUrl}
           contentType={documentDetails.contentType}
           onDownloadClick={() => {
@@ -296,12 +429,12 @@ export const FileDetailPage: React.FC = () => {
               folderName: fromFolderName,
             },
           })}
-          isChatOpen={isChatOpen}
-          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          isChatOpen={isChatOpen && canUseOnlineChat}
+          onToggleChat={canUseOnlineChat ? () => setIsChatOpen(!isChatOpen) : undefined}
         />
 
         {/* Right Side: AI Assistant Chat (40% width or closed) */}
-        {isChatOpen && (
+        {isChatOpen && canUseOnlineChat && (
           <DocumentChat
             documentId={documentDetails.id}
             fileName={documentDetails.name}
@@ -309,6 +442,28 @@ export const FileDetailPage: React.FC = () => {
             onClose={() => setIsChatOpen(false)}
           />
         )}
+        <div className="absolute right-4 bottom-4 z-20 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2 shadow-lg">
+          <span className={`font-body-md text-sm ${isOfflineSaved ? 'text-primary' : 'text-secondary'}`}>
+            {isOfflineSaved ? 'Available Offline' : 'Online only'}
+          </span>
+          {isOfflineSaved ? (
+            <button
+              onClick={handleRemoveOffline}
+              disabled={isOfflineActionLoading}
+              className="px-3 py-1.5 rounded bg-surface-container-high text-on-surface text-sm hover:bg-surface-container-highest disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Remove Offline Copy
+            </button>
+          ) : (
+            <button
+              onClick={handleSaveOffline}
+              disabled={isOfflineActionLoading || !navigator.onLine || !documentDetails.id}
+              className="px-3 py-1.5 rounded bg-primary text-on-primary text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Save Offline
+            </button>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
