@@ -51,17 +51,20 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const sourceUrl = localBlobUrl || previewUrl;
 
   useEffect(() => {
+    let isCancelled = false;
+
     if (isDocx && sourceUrl && docxContainerRef.current) {
       const renderDocxFile = async () => {
         setIsDocxLoading(true);
         setDocxError(null);
         try {
           const response = await fetch(sourceUrl);
+          if (isCancelled) return;
           if (!response.ok) {
             throw new Error(`Failed to fetch file: ${response.statusText}`);
           }
           const arrayBuffer = await response.arrayBuffer();
-          if (docxContainerRef.current) {
+          if (!isCancelled && docxContainerRef.current) {
             docxContainerRef.current.innerHTML = '';
             await docx.renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
               className: 'docx-viewer',
@@ -77,11 +80,21 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           }
           setDocxError(userMessage);
         } finally {
-          setIsDocxLoading(false);
+          if (!isCancelled) {
+            setIsDocxLoading(false);
+          }
         }
       };
       renderDocxFile();
+    } else if (docxContainerRef.current) {
+      docxContainerRef.current.innerHTML = '';
+      setIsDocxLoading(false);
+      setDocxError(null);
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [sourceUrl, isDocx]);
 
   const getFileIconInfo = () => {

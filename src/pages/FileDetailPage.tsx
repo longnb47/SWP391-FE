@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
 import { documentService } from '../services/documentService';
-import { offlineDocumentService } from '../services/offlineDocumentService';
+import { isOfflinePreviewSupported, offlineDocumentService } from '../services/offlineDocumentService';
 import { deleteOfflineDocument, getOfflineDocument, isOfflineDocumentSaved } from '../lib/offlineDocumentDb';
+import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
@@ -43,6 +44,27 @@ const calculateStorageUsage = (files: { fileSize: number }[], isLoggedIn: boolea
   };
 };
 
+const formatOfflineRecordDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || 'Unknown';
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const isValidOfflineRecord = (record: OfflineDocumentRecord | undefined): record is OfflineDocumentRecord =>
+  !!record &&
+  record.blob instanceof Blob &&
+  record.blob.size > 0 &&
+  Number.isFinite(record.documentId) &&
+  !!record.fileName &&
+  !!record.contentType &&
+  Number.isFinite(record.fileSize) &&
+  record.fileSize > 0;
+
 export const FileDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -78,17 +100,51 @@ export const FileDetailPage: React.FC = () => {
   const [isOfflineSaved, setIsOfflineSaved] = useState(false);
   const [isOfflineActionLoading, setIsOfflineActionLoading] = useState(false);
   const [offlineUnavailableMessage, setOfflineUnavailableMessage] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [offlineFeedback, setOfflineFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const saveInProgressRef = useRef(false);
+  const removeInProgressRef = useRef(false);
 
   const isLoggedIn = !!localStorage.getItem('token');
   const currentUserId = Number(localStorage.getItem('userId')) || null;
 
+  const replaceLocalBlobUrl = (nextUrl: string | null) => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+
+    blobUrlRef.current = nextUrl;
+    setLocalBlobUrl(nextUrl);
+  };
+
   useEffect(() => {
     return () => {
-      if (localBlobUrl) {
-        URL.revokeObjectURL(localBlobUrl);
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
       }
     };
-  }, [localBlobUrl]);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setOfflineFeedback({ type: 'success', message: 'Back online. Document actions are available again.' });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setOfflineFeedback({ type: 'info', message: 'You are offline. Saved documents can still be opened from this browser.' });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -100,26 +156,34 @@ export const FileDetailPage: React.FC = () => {
     const loadDetails = async () => {
       setIsLoading(true);
       setOfflineUnavailableMessage(null);
-      setLocalBlobUrl(null);
+      setOfflineFeedback(null);
+      replaceLocalBlobUrl(null);
       setIsOfflineSaved(false);
 
       const numericId = Number(id);
-      if (!isNaN(numericId) && !navigator.onLine) {
+      if (!isNaN(numericId) && !isOnline) {
         try {
           const offlineRecord = await getOfflineDocument(numericId, currentUserId);
-          if (offlineRecord) {
-            const blobUrl = URL.createObjectURL(offlineRecord.blob);
-            setLocalBlobUrl(blobUrl);
+          if (isValidOfflineRecord(offlineRecord)) {
+            let blobUrl: string;
+            try {
+              blobUrl = URL.createObjectURL(offlineRecord.blob);
+            } catch (e) {
+              console.error('Failed to create offline document URL:', e);
+              setDocumentDetails(null);
+              setOfflineUnavailableMessage('Document unavailable offline. The saved copy could not be opened by this browser.');
+              setOfflineFeedback({ type: 'error', message: 'The saved copy could not be opened. Try reconnecting and saving it again.' });
+              setIsLoading(false);
+              return;
+            }
+
+            replaceLocalBlobUrl(blobUrl);
             setIsOfflineSaved(true);
             setDocumentDetails({
               id: offlineRecord.documentId,
               name: offlineRecord.fileName,
               size: formatBytes(offlineRecord.fileSize),
-              lastModified: new Date(offlineRecord.lastModified).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              }),
+              lastModified: formatOfflineRecordDate(offlineRecord.lastModified),
               previewUrl: null,
               downloadUrl: null,
               contentType: offlineRecord.contentType,
@@ -128,6 +192,11 @@ export const FileDetailPage: React.FC = () => {
               fileSizeBytes: offlineRecord.fileSize,
               uploadedAt: offlineRecord.lastModified,
             });
+          } else if (offlineRecord) {
+            await deleteOfflineDocument(numericId, currentUserId);
+            setDocumentDetails(null);
+            setOfflineUnavailableMessage('Document unavailable offline. The saved copy was corrupted and has been removed.');
+            setOfflineFeedback({ type: 'error', message: 'The offline copy was corrupted. Reconnect and save the document again.' });
           } else {
             setDocumentDetails(null);
             setOfflineUnavailableMessage('Document unavailable offline. Reconnect and save it for offline use first.');
@@ -309,7 +378,7 @@ export const FileDetailPage: React.FC = () => {
     };
 
     loadDetails();
-  }, [id, isLoggedIn, navigate, currentUserId]);
+  }, [id, isLoggedIn, navigate, currentUserId, isOnline]);
 
   const handleTabChange = (tabName: string) => {
     if (tabName !== 'AI Assistant' && tabName !== 'Settings') {
@@ -317,20 +386,35 @@ export const FileDetailPage: React.FC = () => {
     }
   };
 
-  const canUseOnlineChat = navigator.onLine;
+  const canUseOnlineChat = isOnline;
+  const canSaveCurrentDocument =
+    !!documentDetails?.id &&
+    isOfflinePreviewSupported(documentDetails.name, documentDetails.contentType || '');
 
   const handleSaveOffline = async () => {
+    if (saveInProgressRef.current) return;
+
     if (!documentDetails?.id || documentDetails.fileSizeBytes == null || !documentDetails.uploadedAt) {
-      alert('This document cannot be saved offline yet.');
+      setOfflineFeedback({ type: 'error', message: 'This document cannot be saved offline yet.' });
       return;
     }
 
-    if (!navigator.onLine) {
-      alert('Reconnect to the internet before saving a document offline.');
+    if (!canSaveCurrentDocument) {
+      setOfflineFeedback({
+        type: 'error',
+        message: 'This file type is not supported for offline preview yet. You can still download it normally.',
+      });
       return;
     }
 
+    if (!isOnline) {
+      setOfflineFeedback({ type: 'error', message: 'Reconnect to the internet before saving this document offline.' });
+      return;
+    }
+
+    saveInProgressRef.current = true;
     setIsOfflineActionLoading(true);
+    setOfflineFeedback({ type: 'info', message: 'Downloading document for offline use...' });
     try {
       await offlineDocumentService.saveDocumentForOffline({
         documentId: documentDetails.id,
@@ -341,35 +425,44 @@ export const FileDetailPage: React.FC = () => {
         lastModified: documentDetails.uploadedAt,
       });
       setIsOfflineSaved(true);
-      alert(`"${documentDetails.name}" is now available offline.`);
+      setOfflineFeedback({ type: 'success', message: `"${documentDetails.name}" is now available offline.` });
     } catch (e) {
       console.error('Failed to save document offline:', e);
-      alert(e instanceof Error ? e.message : 'Failed to save document offline.');
+      setOfflineFeedback({
+        type: 'error',
+        message: e instanceof Error ? e.message : 'Failed to save this document offline. Try again.',
+      });
     } finally {
+      saveInProgressRef.current = false;
       setIsOfflineActionLoading(false);
     }
   };
 
   const handleRemoveOffline = async () => {
     if (!documentDetails?.id) return;
+    if (removeInProgressRef.current) return;
+    const confirmed = window.confirm(`Remove the offline copy of "${documentDetails.name}" from this browser?`);
+    if (!confirmed) return;
 
+    removeInProgressRef.current = true;
     setIsOfflineActionLoading(true);
+    setOfflineFeedback({ type: 'info', message: 'Removing offline copy...' });
     try {
       await deleteOfflineDocument(documentDetails.id, currentUserId);
       setIsOfflineSaved(false);
       if (localBlobUrl) {
-        URL.revokeObjectURL(localBlobUrl);
-        setLocalBlobUrl(null);
+        replaceLocalBlobUrl(null);
       }
-      if (!navigator.onLine) {
+      if (!isOnline) {
         setDocumentDetails(null);
         setOfflineUnavailableMessage('Document unavailable offline. Reconnect and save it for offline use first.');
       }
-      alert(`Offline copy removed for "${documentDetails.name}".`);
+      setOfflineFeedback({ type: 'success', message: `Offline copy removed for "${documentDetails.name}".` });
     } catch (e) {
       console.error('Failed to remove offline document:', e);
-      alert('Failed to remove the offline copy.');
+      setOfflineFeedback({ type: 'error', message: 'Could not remove the offline copy. Try again.' });
     } finally {
+      removeInProgressRef.current = false;
       setIsOfflineActionLoading(false);
     }
   };
@@ -382,6 +475,17 @@ export const FileDetailPage: React.FC = () => {
             <>
               <span className="material-symbols-outlined text-[44px] text-secondary select-none">cloud_off</span>
               <span className="font-body-md text-secondary select-none">{offlineUnavailableMessage}</span>
+              {offlineFeedback && (
+                <span className={`font-body-md text-sm select-none ${
+                  offlineFeedback.type === 'error'
+                    ? 'text-error'
+                    : offlineFeedback.type === 'success'
+                    ? 'text-primary'
+                    : 'text-secondary'
+                }`}>
+                  {offlineFeedback.message}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -443,24 +547,37 @@ export const FileDetailPage: React.FC = () => {
           />
         )}
         <div className="absolute right-4 bottom-4 z-20 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2 shadow-lg">
-          <span className={`font-body-md text-sm ${isOfflineSaved ? 'text-primary' : 'text-secondary'}`}>
-            {isOfflineSaved ? 'Available Offline' : 'Online only'}
-          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className={`font-body-md text-sm ${isOfflineSaved ? 'text-primary' : 'text-secondary'}`}>
+              {isOfflineSaved ? 'Available Offline' : isOnline ? 'Online only' : 'Offline'}
+            </span>
+            {offlineFeedback && (
+              <span className={`font-body-md text-xs max-w-[320px] ${
+                offlineFeedback.type === 'error'
+                  ? 'text-error'
+                  : offlineFeedback.type === 'success'
+                  ? 'text-primary'
+                  : 'text-secondary'
+              }`}>
+                {offlineFeedback.message}
+              </span>
+            )}
+          </div>
           {isOfflineSaved ? (
             <button
               onClick={handleRemoveOffline}
               disabled={isOfflineActionLoading}
               className="px-3 py-1.5 rounded bg-surface-container-high text-on-surface text-sm hover:bg-surface-container-highest disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              Remove Offline Copy
+              {isOfflineActionLoading ? 'Removing...' : 'Remove Offline Copy'}
             </button>
           ) : (
             <button
               onClick={handleSaveOffline}
-              disabled={isOfflineActionLoading || !navigator.onLine || !documentDetails.id}
+              disabled={isOfflineActionLoading || !isOnline || !documentDetails.id}
               className="px-3 py-1.5 rounded bg-primary text-on-primary text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              Save Offline
+              {isOfflineActionLoading ? 'Downloading...' : 'Save Offline'}
             </button>
           )}
         </div>
