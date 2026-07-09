@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardPage from './pages/DashboardPage'
 import FileDetailPage from './pages/FileDetailPage'
@@ -10,8 +11,21 @@ import SharedLinkPage from './pages/SharedLinkPage'
 import ProfilePage from './pages/ProfilePage'
 import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
+import { offlineDocumentService } from './services/offlineDocumentService'
 
 function App() {
+  useEffect(() => {
+    const handleOnline = () => {
+      if (!localStorage.getItem('token')) return;
+      offlineDocumentService.synchronizeOfflineDocuments().catch((error) => {
+        console.error('Background offline document sync failed:', error);
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   return (
     <UserProfileProvider>
       <BrowserRouter>

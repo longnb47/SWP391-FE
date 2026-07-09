@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import SearchInput from '../components/common/SearchInput';
@@ -10,6 +10,7 @@ import {
 } from '../lib/offlineDocumentDb';
 import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import { getFileIconDetails } from '../lib/fileHelpers';
+import { offlineDocumentService } from '../services/offlineDocumentService';
 
 type OfflineSortOption = 'NEWEST' | 'OLDEST' | 'NAME_ASC' | 'NAME_DESC' | 'SIZE_DESC';
 
@@ -52,6 +53,10 @@ export const OfflineDocumentsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<OfflineSortOption>('NEWEST');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [refreshingKey, setRefreshingKey] = useState<string | null>(null);
+  const syncInProgressRef = useRef(false);
 
   const loadOfflineDocuments = async () => {
     setIsLoading(true);
@@ -66,8 +71,64 @@ export const OfflineDocumentsPage: React.FC = () => {
     }
   };
 
+  const syncOfflineDocuments = async (reason: 'manual' | 'online' = 'manual') => {
+    if (!navigator.onLine || syncInProgressRef.current) return;
+
+    syncInProgressRef.current = true;
+    setIsSyncing(true);
+    setFeedback({
+      type: 'info',
+      message: reason === 'online' ? 'Back online. Checking offline documents...' : 'Checking offline documents...',
+    });
+
+    try {
+      const result = await offlineDocumentService.synchronizeOfflineDocuments();
+      setRecords(result.records);
+      setFeedback({
+        type: result.failed > 0 ? 'error' : 'success',
+        message:
+          result.failed > 0
+            ? `Checked ${result.checked} offline documents. ${result.failed} could not be synchronized.`
+            : `Checked ${result.checked} offline documents. Offline statuses are up to date.`,
+      });
+    } catch (e) {
+      console.error('Failed to synchronize offline documents:', e);
+      setFeedback({ type: 'error', message: e instanceof Error ? e.message : 'Could not synchronize offline documents.' });
+    } finally {
+      syncInProgressRef.current = false;
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
-    loadOfflineDocuments();
+    let isMounted = true;
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncOfflineDocuments('online');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setFeedback({ type: 'info', message: 'You are offline. Synchronization will resume when the connection returns.' });
+    };
+
+    const initialize = async () => {
+      await loadOfflineDocuments();
+      if (isMounted && navigator.onLine) {
+        await syncOfflineDocuments('manual');
+      }
+    };
+
+    initialize();
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredRecords = useMemo(() => {
@@ -97,6 +158,7 @@ export const OfflineDocumentsPage: React.FC = () => {
   }, [records, searchQuery, sortOption]);
 
   const totalStorageUsed = records.reduce((sum, record) => sum + record.fileSize, 0);
+  const getRecordKey = (record: OfflineDocumentRecord) => record.key || `${record.userId ?? 'anonymous'}:${record.documentId}`;
 
   const handleTabChange = (tabName: string) => {
     if (tabName === 'Offline') return;
@@ -151,6 +213,38 @@ export const OfflineDocumentsPage: React.FC = () => {
     }
   };
 
+  const handleRefreshDocument = async (record: OfflineDocumentRecord) => {
+    const key = getRecordKey(record);
+    setRefreshingKey(key);
+    setFeedback({ type: 'info', message: `Refreshing "${record.fileName}"...` });
+
+    try {
+      const refreshedRecord = await offlineDocumentService.refreshOfflineCopy(record);
+      setRecords((current) =>
+        current.map((item) => (getRecordKey(item) === key ? refreshedRecord : item))
+      );
+      setFeedback({ type: 'success', message: `"${refreshedRecord.fileName}" was refreshed for offline use.` });
+    } catch (e) {
+      console.error('Failed to refresh offline copy:', e);
+      setFeedback({ type: 'error', message: e instanceof Error ? e.message : 'Could not refresh this offline copy.' });
+    } finally {
+      setRefreshingKey(null);
+    }
+  };
+
+  const getStatusInfo = (record: OfflineDocumentRecord) => {
+    if (record.syncStatus === 'UPDATE_AVAILABLE') {
+      return { label: 'Update available', classes: 'bg-warning-container text-[#8a5a00] border-[#f3c969]' };
+    }
+    if (record.syncStatus === 'DELETED') {
+      return { label: 'Deleted', classes: 'bg-error-container/30 text-error border-error/30' };
+    }
+    if (record.syncStatus === 'ACCESS_REMOVED') {
+      return { label: 'Access removed', classes: 'bg-error-container/30 text-error border-error/30' };
+    }
+    return { label: 'Up to date', classes: 'bg-primary/10 text-primary border-primary/20' };
+  };
+
   return (
     <DashboardLayout activeTab="Offline" onTabChange={handleTabChange}>
       <section className="space-y-5">
@@ -172,8 +266,8 @@ export const OfflineDocumentsPage: React.FC = () => {
               <p className="font-title-lg text-title-lg font-bold text-on-surface">{formatBytes(totalStorageUsed)}</p>
             </div>
             <div className="rounded-lg border border-outline-variant bg-surface px-4 py-3">
-              <p className="font-label-md text-label-md text-secondary">Visible</p>
-              <p className="font-title-lg text-title-lg font-bold text-on-surface">{filteredRecords.length}</p>
+              <p className="font-label-md text-label-md text-secondary">Sync</p>
+              <p className="font-title-lg text-title-lg font-bold text-on-surface">{isOnline ? 'Online' : 'Offline'}</p>
             </div>
           </div>
         </div>
@@ -198,10 +292,20 @@ export const OfflineDocumentsPage: React.FC = () => {
             <option value="SIZE_DESC">File size</option>
           </select>
           <Button
+            variant="secondary"
+            leftIcon="sync"
+            onClick={() => syncOfflineDocuments('manual')}
+            disabled={!isOnline || isSyncing || records.length === 0}
+            isLoading={isSyncing}
+            className="md:w-auto"
+          >
+            Sync
+          </Button>
+          <Button
             variant="danger"
             leftIcon="delete_sweep"
             onClick={handleDeleteAll}
-            disabled={records.length === 0}
+            disabled={records.length === 0 || isSyncing}
             className="md:w-auto"
           >
             Delete All
@@ -244,21 +348,26 @@ export const OfflineDocumentsPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="hidden lg:grid grid-cols-[minmax(0,1.8fr)_120px_120px_140px_140px_120px] gap-4 border-b border-outline-variant px-3 pb-2 font-label-md text-label-md text-secondary select-none">
+            <div className="hidden lg:grid grid-cols-[minmax(0,1.8fr)_110px_110px_130px_130px_140px_150px] gap-4 border-b border-outline-variant px-3 pb-2 font-label-md text-label-md text-secondary select-none">
               <span>Name</span>
               <span>Type</span>
               <span>Size</span>
               <span>Saved</span>
               <span>Modified</span>
+              <span>Status</span>
               <span className="text-right">Actions</span>
             </div>
 
             {filteredRecords.map((record) => {
               const icon = getFileIconDetails(record.fileName, 'file');
+              const status = getStatusInfo(record);
+              const recordKey = getRecordKey(record);
+              const canRefresh = record.syncStatus === 'UPDATE_AVAILABLE' && isOnline;
+              const isStale = record.syncStatus === 'DELETED' || record.syncStatus === 'ACCESS_REMOVED';
               return (
                 <article
-                  key={record.key || `${record.userId ?? 'anonymous'}:${record.documentId}`}
-                  className="rounded-lg border border-outline-variant bg-surface p-3 lg:grid lg:grid-cols-[minmax(0,1.8fr)_120px_120px_140px_140px_120px] lg:items-center lg:gap-4"
+                  key={recordKey}
+                  className="rounded-lg border border-outline-variant bg-surface p-3 lg:grid lg:grid-cols-[minmax(0,1.8fr)_110px_110px_130px_130px_140px_150px] lg:items-center lg:gap-4"
                 >
                   <button
                     type="button"
@@ -295,14 +404,37 @@ export const OfflineDocumentsPage: React.FC = () => {
                       <span className="block lg:hidden font-label-md text-label-md text-secondary">Modified</span>
                       <span className="font-body-md text-body-md text-on-surface">{formatDate(record.lastModified)}</span>
                     </div>
+                    <div>
+                      <span className="block lg:hidden font-label-md text-label-md text-secondary">Status</span>
+                      <span className={`inline-flex w-fit items-center rounded-full border px-2 py-1 text-xs font-semibold ${status.classes}`}>
+                        {status.label}
+                      </span>
+                      {record.syncMessage && (
+                        <span className="mt-1 block font-body-md text-xs text-secondary">{record.syncMessage}</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-3 flex justify-end gap-2 lg:mt-0">
+                    {canRefresh && (
+                      <button
+                        type="button"
+                        onClick={() => handleRefreshDocument(record)}
+                        disabled={refreshingKey === recordKey}
+                        className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Refresh offline copy"
+                      >
+                        <span className={`material-symbols-outlined text-[20px] select-none ${refreshingKey === recordKey ? 'animate-spin' : ''}`}>
+                          sync
+                        </span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleOpenDocument(record)}
-                      className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
-                      title="Open offline document"
+                      disabled={isStale}
+                      className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={isStale ? 'This stale copy cannot be opened until removed or refreshed.' : 'Open offline document'}
                     >
                       <span className="material-symbols-outlined text-[20px] select-none">visibility</span>
                     </button>

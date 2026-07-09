@@ -7,8 +7,21 @@ export interface OfflineDocumentRecord {
   fileSize: number;
   lastModified: string;
   savedAt: string;
+  syncStatus?: OfflineDocumentSyncStatus;
+  lastSyncedAt?: string;
+  syncMessage?: string;
+  remoteFileName?: string;
+  remoteContentType?: string;
+  remoteFileSize?: number;
+  remoteLastModified?: string;
   blob: Blob;
 }
+
+export type OfflineDocumentSyncStatus =
+  | 'UP_TO_DATE'
+  | 'UPDATE_AVAILABLE'
+  | 'DELETED'
+  | 'ACCESS_REMOVED';
 
 const DB_NAME = 'aetherdocs-offline-documents';
 const DB_VERSION = 1;
@@ -88,6 +101,16 @@ export const saveOfflineDocument = async (record: OfflineDocumentRecord) => {
     ...record,
     userId: record.userId ?? undefined,
     key: buildKey(record.documentId, record.userId),
+  };
+
+  await withStore('readwrite', (store) => store.put(storedRecord));
+};
+
+export const updateOfflineDocument = async (record: OfflineDocumentRecord) => {
+  const storedRecord: OfflineDocumentRecord = {
+    ...record,
+    userId: record.userId ?? undefined,
+    key: record.key || buildKey(record.documentId, record.userId),
   };
 
   await withStore('readwrite', (store) => store.put(storedRecord));
