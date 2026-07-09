@@ -115,6 +115,13 @@ export const deleteOfflineDocument = async (documentId: number, userId?: number 
   }
 };
 
+export const getAllOfflineDocuments = async () =>
+  withStore<OfflineDocumentRecord[]>('readonly', (store) => store.getAll());
+
+export const deleteAllOfflineDocuments = async () => {
+  await withStore('readwrite', (store) => store.clear());
+};
+
 export const isOfflineDocumentSaved = async (documentId: number, userId?: number | null) => {
   const record = await getOfflineDocument(documentId, userId);
   return !!record;

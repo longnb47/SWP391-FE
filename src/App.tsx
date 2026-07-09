@@ -8,6 +8,7 @@ import OAuth2RedirectHandler from './pages/OAuth2RedirectHandler'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import SharedLinkPage from './pages/SharedLinkPage'
 import ProfilePage from './pages/ProfilePage'
+import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
 
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/document/:id" element={<FileDetailPage />} />
+          <Route path="/offline-documents" element={<OfflineDocumentsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/share/:token" element={<SharedLinkPage />} />
 

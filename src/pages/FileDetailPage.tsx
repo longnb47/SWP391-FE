@@ -74,11 +74,15 @@ export const FileDetailPage: React.FC = () => {
     fromTab?: string;
     fromFolderId?: number | null;
     fromFolderName?: string | null;
+    preferOffline?: boolean;
+    offlineUserId?: number | null;
   } | null;
 
   const fromTab = state?.fromTab || 'My Files';
   const fromFolderId = state?.fromFolderId !== undefined ? state.fromFolderId : null;
   const fromFolderName = state?.fromFolderName !== undefined ? state.fromFolderName : null;
+  const preferOffline = !!state?.preferOffline;
+  const offlineLookupUserId = preferOffline && state?.offlineUserId !== undefined ? state.offlineUserId : null;
 
   const [documentDetails, setDocumentDetails] = useState<{
     id: number | null;
@@ -161,9 +165,9 @@ export const FileDetailPage: React.FC = () => {
       setIsOfflineSaved(false);
 
       const numericId = Number(id);
-      if (!isNaN(numericId) && !isOnline) {
+      if (!isNaN(numericId) && (!isOnline || preferOffline)) {
         try {
-          const offlineRecord = await getOfflineDocument(numericId, currentUserId);
+          const offlineRecord = await getOfflineDocument(numericId, preferOffline ? offlineLookupUserId : currentUserId);
           if (isValidOfflineRecord(offlineRecord)) {
             let blobUrl: string;
             try {
@@ -193,7 +197,7 @@ export const FileDetailPage: React.FC = () => {
               uploadedAt: offlineRecord.lastModified,
             });
           } else if (offlineRecord) {
-            await deleteOfflineDocument(numericId, currentUserId);
+            await deleteOfflineDocument(numericId, preferOffline ? offlineLookupUserId : currentUserId);
             setDocumentDetails(null);
             setOfflineUnavailableMessage('Document unavailable offline. The saved copy was corrupted and has been removed.');
             setOfflineFeedback({ type: 'error', message: 'The offline copy was corrupted. Reconnect and save the document again.' });
@@ -378,9 +382,14 @@ export const FileDetailPage: React.FC = () => {
     };
 
     loadDetails();
-  }, [id, isLoggedIn, navigate, currentUserId, isOnline]);
+  }, [id, isLoggedIn, navigate, currentUserId, isOnline, preferOffline, offlineLookupUserId]);
 
   const handleTabChange = (tabName: string) => {
+    if (tabName === 'Offline') {
+      navigate('/offline-documents');
+      return;
+    }
+
     if (tabName !== 'AI Assistant' && tabName !== 'Settings') {
       navigate('/dashboard', { state: { activeTab: tabName } });
     }
@@ -448,7 +457,7 @@ export const FileDetailPage: React.FC = () => {
     setIsOfflineActionLoading(true);
     setOfflineFeedback({ type: 'info', message: 'Removing offline copy...' });
     try {
-      await deleteOfflineDocument(documentDetails.id, currentUserId);
+      await deleteOfflineDocument(documentDetails.id, preferOffline ? offlineLookupUserId : currentUserId);
       setIsOfflineSaved(false);
       if (localBlobUrl) {
         replaceLocalBlobUrl(null);
@@ -526,13 +535,20 @@ export const FileDetailPage: React.FC = () => {
             }
           }}
           onShareClick={() => alert(`Sharing "${documentDetails.name}" link...`)}
-          onBack={() => navigate('/dashboard', {
-            state: {
-              activeTab: fromTab,
-              folderId: fromFolderId,
-              folderName: fromFolderName,
-            },
-          })}
+          onBack={() => {
+            if (fromTab === 'Offline') {
+              navigate('/offline-documents');
+              return;
+            }
+
+            navigate('/dashboard', {
+              state: {
+                activeTab: fromTab,
+                folderId: fromFolderId,
+                folderName: fromFolderName,
+              },
+            });
+          }}
           isChatOpen={isChatOpen && canUseOnlineChat}
           onToggleChat={canUseOnlineChat ? () => setIsChatOpen(!isChatOpen) : undefined}
         />
