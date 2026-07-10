@@ -114,6 +114,9 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             {plans.map((plan) => {
               const isCurrent = currentSub && currentSub.planName.toLowerCase() === plan.name.toLowerCase() && currentSub.status === 'ACTIVE';
               const isFree = plan.price === 0;
+              const currentPrice = currentSub && currentSub.status === 'ACTIVE' ? currentSub.price : 0;
+              const isDowngrade = plan.price < currentPrice;
+              const isDisabled = isCurrent || isDowngrade || isPurchasing !== null;
 
               return (
                 <div 
@@ -210,11 +213,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                   ) : (
                     <button
                       onClick={() => handlePurchase(plan.id)}
-                      disabled={isCurrent || isPurchasing !== null}
-                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 ${
-                        isCurrent
-                          ? 'border border-outline bg-surface-container text-secondary cursor-not-allowed'
-                          : 'bg-primary text-on-primary hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] active:scale-[0.98]'
+                      disabled={isDisabled}
+                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                        isDisabled
+                          ? 'border border-outline bg-surface-container text-secondary/60 cursor-not-allowed'
+                          : 'bg-primary text-on-primary hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] active:scale-[0.98] cursor-pointer'
                       }`}
                     >
                       {isPurchasing === plan.id ? (
@@ -224,6 +227,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                         </>
                       ) : isCurrent ? (
                         'Active'
+                      ) : isDowngrade ? (
+                        'Downgrade Blocked'
                       ) : (
                         'Upgrade Plan'
                       )}
