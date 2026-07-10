@@ -71,6 +71,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
   const [sessionId, setSessionId] = useState<number | null>(null);
 
+  const isChatReady = isFolderMode ? (documentIds?.length ?? 0) > 0 : status === 'READY';
   const documentIdsStr = documentIds?.join(',') || '';
 
   // Initialize/Load session when switching document or folder
@@ -166,7 +167,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim() || isAiLoading) return;
+    if (!inputVal.trim() || isAiLoading || !isChatReady) return;
 
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -360,37 +361,15 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
       try {
         const response = await chatService.sendMessageToSession(currentSessionId, query);
         if (response.data && response.data.success) {
-          const data = response.data.data as {
-            answer?: string;
-            content?: string;
-            model?: string;
-            temperature?: number;
-            usedDocumentIds?: number[];
-            sources?: MessageSource[];
-          };
-          
-          // Defensive parsing for both possible response formats
-          const answerText = data.content || data.answer || '';
-          
-          let resolvedSources: MessageSource[] = [];
-          if (Array.isArray(data.sources)) {
-            resolvedSources = data.sources;
-          } else if (Array.isArray(data.usedDocumentIds)) {
-            resolvedSources = data.usedDocumentIds.map((id: number) => ({
-              documentId: id,
-              chunkId: 0,
-              pageNumber: null,
-              score: 1.0,
-            }));
-          }
+          const data = response.data.data;
 
           const aiResponse: ChatMessage = {
             id: `msg-ai-${Date.now()}`,
             sender: 'ai',
             senderName: 'Aether AI',
             avatar: 'smart_toy',
-            text: answerText,
-            sources: resolvedSources.length > 0 ? resolvedSources : undefined,
+            text: data.content,
+            sources: data.sources?.length > 0 ? data.sources : undefined,
           };
           setMessages((prev) => [...prev, aiResponse]);
         } else {
@@ -582,15 +561,23 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
           <input
             type="text"
             className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3 px-4 outline-none"
-            placeholder={isFolderMode ? `Ask a question about folder "${folderName}"...` : "Ask a question about this document..."}
+            placeholder={
+              !isChatReady
+                ? isFolderMode
+                  ? 'No READY documents available in this folder'
+                  : 'This document is not READY for Q&A yet'
+                : isFolderMode
+                ? `Ask a question about folder "${folderName}"...`
+                : 'Ask a question about this document...'
+            }
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            disabled={isAiLoading}
+            disabled={isAiLoading || !isChatReady}
           />
           <button 
             type="submit"
-            className="m-2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all cursor-pointer"
-            disabled={isAiLoading}
+            className="m-2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            disabled={isAiLoading || !isChatReady || !inputVal.trim()}
           >
             <span className="material-symbols-outlined text-[18px] select-none">arrow_upward</span>
           </button>

@@ -272,37 +272,15 @@ export const SmartChatView: React.FC = () => {
       const response = await chatService.sendMessageToSession(currentSessionId, query);
 
       if (response.data && response.data.success) {
-        const data = response.data.data as {
-          answer?: string;
-          content?: string;
-          model?: string;
-          temperature?: number;
-          usedDocumentIds?: number[];
-          sources?: MessageSource[];
-        };
-
-        // Defensive parsing for both possible response formats
-        const answerText = data.content || data.answer || '';
-        
-        let resolvedSources: MessageSource[] = [];
-        if (Array.isArray(data.sources)) {
-          resolvedSources = data.sources;
-        } else if (Array.isArray(data.usedDocumentIds)) {
-          resolvedSources = data.usedDocumentIds.map((id: number) => ({
-            documentId: id,
-            chunkId: 0,
-            pageNumber: null,
-            score: 1.0,
-          }));
-        }
+        const data = response.data.data;
 
         const aiResponse: ChatMessage = {
           id: `msg-ai-${Date.now()}`,
           sender: 'ai',
           senderName: 'Aether AI',
           avatar: 'smart_toy',
-          text: answerText,
-          sources: resolvedSources.length > 0 ? resolvedSources : undefined,
+          text: data.content,
+          sources: data.sources?.length > 0 ? data.sources : undefined,
         };
         setMessages((prev) => [...prev, aiResponse]);
       } else {

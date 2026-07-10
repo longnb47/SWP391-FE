@@ -20,8 +20,14 @@ export interface AskQuestionResponse {
 export interface AskMultiQuestionResponse {
   answer: string;
   mode: string;
-  policy: string;
   usedDocumentIds: number[];
+  sources: {
+    documentId: number;
+    documentName: string;
+    chunkId: number;
+    contentPreview: string | null;
+    similarityScore: number;
+  }[];
   model?: string;
   temperature?: number;
 }
@@ -83,7 +89,6 @@ export const chatService = {
     selectedDocumentIds: number[] | null;
     folderId?: number | null;
     question: string;
-    useGeneralKnowledge?: boolean | null;
     model?: string | null;
     temperature?: number | null;
   }): Promise<ApiResponse<BackendResponse<AskMultiQuestionResponse>>> {
@@ -124,8 +129,8 @@ export const chatService = {
     return apiClient.get<BackendResponse<SessionMessagesResponse>>(`/chat/sessions/${sessionId}/messages?page=${page}&size=${size}`);
   },
 
-  async sendMessageToSession(sessionId: number, question: string): Promise<ApiResponse<BackendResponse<{ answer: string; model: string; temperature: number; usedDocumentIds: number[] }>>> {
-    return apiClient.post<BackendResponse<{ answer: string; model: string; temperature: number; usedDocumentIds: number[] }>>(
+  async sendMessageToSession(sessionId: number, question: string): Promise<ApiResponse<BackendResponse<ChatMessageFromBackend>>> {
+    return apiClient.post<BackendResponse<ChatMessageFromBackend>>(
       `/chat/sessions/${sessionId}/messages`,
       { question }
     );

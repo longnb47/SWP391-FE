@@ -252,7 +252,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,image/*"
+              accept=".pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,.mp4,.mov,.avi,.webm,image/*,video/*"
               className="hidden"
             />
             <div className="w-14 h-14 bg-surface rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -272,7 +272,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             ) : (
               <div className="text-center">
                 <p className="text-body-lg font-bold text-on-surface">Drag and drop your files here</p>
-                <p className="text-body-md text-secondary mb-4">Support for PDF, DOCX, XLSX, and PNG (Max 20MB)</p>
+                <p className="text-body-md text-secondary mb-4">Support for PDF, DOCX, XLSX, PNG, and video (20MB documents, 50MB videos)</p>
                 <button
                   type="button"
                   onClick={(e) => {
