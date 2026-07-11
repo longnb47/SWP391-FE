@@ -29,7 +29,7 @@ export class OfflineDocumentError extends Error {
 
 export interface SaveOfflineDocumentInput {
   documentId: number;
-  userId?: number | null;
+  userId: number;
   fileName: string;
   contentType: string;
   fileSize: number;
@@ -42,7 +42,7 @@ export interface OfflineSyncResult {
   failed: number;
 }
 
-let syncPromise: Promise<OfflineSyncResult> | null = null;
+const syncPromises = new Map<number, Promise<OfflineSyncResult>>();
 
 export const isOfflinePreviewSupported = (fileName: string, contentType: string) => {
   const normalizedType = contentType.toLowerCase();
@@ -190,7 +190,7 @@ export const offlineDocumentService = {
       );
     }
 
-    const record: OfflineDocumentRecord = {
+    const record = {
       documentId: input.documentId,
       userId: input.userId,
       fileName: input.fileName,
@@ -220,15 +220,16 @@ export const offlineDocumentService = {
     return record;
   },
 
-  async synchronizeOfflineDocuments(): Promise<OfflineSyncResult> {
-    if (syncPromise) return syncPromise;
+  async synchronizeOfflineDocuments(userId: number): Promise<OfflineSyncResult> {
+    const existingPromise = syncPromises.get(userId);
+    if (existingPromise) return existingPromise;
 
     if (!navigator.onLine) {
       throw new OfflineDocumentError('OFFLINE', 'Reconnect to the internet before synchronizing offline documents.');
     }
 
-    syncPromise = (async () => {
-      const records = await getAllOfflineDocuments();
+    const syncPromise = (async () => {
+      const records = await getAllOfflineDocuments(userId);
       const syncedRecords: OfflineDocumentRecord[] = [];
       let failed = 0;
 
@@ -257,7 +258,7 @@ export const offlineDocumentService = {
             updatedRecord = classifiedRecord;
           }
 
-          await updateOfflineDocument(updatedRecord);
+          await updateOfflineDocument({ ...updatedRecord, userId });
           syncedRecords.push(updatedRecord);
         } catch (error) {
           console.error(`Failed to synchronize offline document ${record.documentId}:`, error);
@@ -272,15 +273,19 @@ export const offlineDocumentService = {
         failed,
       };
     })();
+    syncPromises.set(userId, syncPromise);
 
     try {
       return await syncPromise;
     } finally {
-      syncPromise = null;
+      syncPromises.delete(userId);
     }
   },
 
-  async refreshOfflineCopy(record: OfflineDocumentRecord) {
+  async refreshOfflineCopy(record: OfflineDocumentRecord, userId: number) {
+    if (record.userId !== userId) {
+      throw new OfflineDocumentError('STORAGE_FAILED', 'This offline copy belongs to a different account.');
+    }
     if (record.syncStatus === 'DELETED') {
       throw new OfflineDocumentError('DOWNLOAD_URL_FAILED', 'This document was deleted online. Remove the stale offline copy instead.');
     }
@@ -291,7 +296,7 @@ export const offlineDocumentService = {
 
     const refreshedRecord = await this.saveDocumentForOffline({
       documentId: record.documentId,
-      userId: record.userId,
+      userId,
       fileName: record.remoteFileName || record.fileName,
       contentType: record.remoteContentType || record.contentType,
       fileSize: record.remoteFileSize || record.fileSize,
@@ -309,7 +314,7 @@ export const offlineDocumentService = {
       remoteLastModified: undefined,
     };
 
-    await updateOfflineDocument(syncedRecord);
+    await updateOfflineDocument({ ...syncedRecord, userId });
     return syncedRecord;
   },
 };

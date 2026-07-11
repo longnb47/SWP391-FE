@@ -27,7 +27,7 @@ const DB_NAME = 'aetherdocs-offline-documents';
 const DB_VERSION = 1;
 const STORE_NAME = 'documents';
 
-const buildKey = (documentId: number, userId?: number | null) => `${userId ?? 'anonymous'}:${documentId}`;
+const buildKey = (documentId: number, userId: number) => `${userId}:${documentId}`;
 
 const openDb = () =>
   new Promise<IDBDatabase>((resolve, reject) => {
@@ -70,82 +70,50 @@ const withStore = async <T>(
   });
 };
 
-const findByDocumentId = async (documentId: number) => {
-  const db = await openDb();
-
-  return new Promise<OfflineDocumentRecord | undefined>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('documentId');
-    const request = index.openCursor(IDBKeyRange.only(documentId));
-
-    request.onsuccess = () => {
-      const cursor = request.result;
-      resolve(cursor ? (cursor.value as OfflineDocumentRecord) : undefined);
-    };
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => db.close();
-    transaction.onerror = () => {
-      db.close();
-      reject(transaction.error);
-    };
-    transaction.onabort = () => {
-      db.close();
-      reject(transaction.error);
-    };
-  });
-};
-
-export const saveOfflineDocument = async (record: OfflineDocumentRecord) => {
+export const saveOfflineDocument = async (record: OfflineDocumentRecord & { userId: number }) => {
   const storedRecord: OfflineDocumentRecord = {
     ...record,
-    userId: record.userId ?? undefined,
+    userId: record.userId,
     key: buildKey(record.documentId, record.userId),
   };
 
   await withStore('readwrite', (store) => store.put(storedRecord));
 };
 
-export const updateOfflineDocument = async (record: OfflineDocumentRecord) => {
+export const updateOfflineDocument = async (record: OfflineDocumentRecord & { userId: number }) => {
   const storedRecord: OfflineDocumentRecord = {
     ...record,
-    userId: record.userId ?? undefined,
-    key: record.key || buildKey(record.documentId, record.userId),
+    userId: record.userId,
+    key: buildKey(record.documentId, record.userId),
   };
 
   await withStore('readwrite', (store) => store.put(storedRecord));
 };
 
-export const getOfflineDocument = async (documentId: number, userId?: number | null) => {
-  if (userId !== undefined) {
-    return withStore<OfflineDocumentRecord | undefined>('readonly', (store) =>
-      store.get(buildKey(documentId, userId))
-    );
-  }
+export const getOfflineDocument = async (documentId: number, userId: number) =>
+  withStore<OfflineDocumentRecord | undefined>('readonly', (store) =>
+    store.get(buildKey(documentId, userId))
+  );
 
-  return findByDocumentId(documentId);
+export const deleteOfflineDocument = async (documentId: number, userId: number) => {
+  await withStore('readwrite', (store) => store.delete(buildKey(documentId, userId)));
 };
 
-export const deleteOfflineDocument = async (documentId: number, userId?: number | null) => {
-  if (userId !== undefined) {
-    await withStore('readwrite', (store) => store.delete(buildKey(documentId, userId)));
-    return;
-  }
-
-  const record = await findByDocumentId(documentId);
-  if (record?.key) {
-    await withStore('readwrite', (store) => store.delete(record.key as IDBValidKey));
-  }
+export const getAllOfflineDocuments = async (userId: number) => {
+  const records = await withStore<OfflineDocumentRecord[]>('readonly', (store) => store.getAll());
+  return records.filter((record) => record.userId === userId);
 };
 
-export const getAllOfflineDocuments = async () =>
-  withStore<OfflineDocumentRecord[]>('readonly', (store) => store.getAll());
-
-export const deleteAllOfflineDocuments = async () => {
-  await withStore('readwrite', (store) => store.clear());
+export const deleteAllOfflineDocuments = async (userId: number) => {
+  const records = await getAllOfflineDocuments(userId);
+  await Promise.all(
+    records.map((record) =>
+      withStore('readwrite', (store) => store.delete(buildKey(record.documentId, userId)))
+    )
+  );
 };
 
-export const isOfflineDocumentSaved = async (documentId: number, userId?: number | null) => {
+export const isOfflineDocumentSaved = async (documentId: number, userId: number) => {
   const record = await getOfflineDocument(documentId, userId);
   return !!record;
 };
