@@ -18,7 +18,9 @@ function App() {
   useEffect(() => {
     const handleOnline = () => {
       if (!localStorage.getItem('token')) return;
-      offlineDocumentService.synchronizeOfflineDocuments().catch((error) => {
+      const userId = Number(localStorage.getItem('userId'));
+      if (!Number.isFinite(userId) || userId <= 0) return;
+      offlineDocumentService.synchronizeOfflineDocuments(userId).catch((error) => {
         console.error('Background offline document sync failed:', error);
       });
     };
