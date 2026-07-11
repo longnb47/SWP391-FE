@@ -72,7 +72,6 @@ export const FileDetailPage: React.FC = () => {
   const fromFolderId = state?.fromFolderId !== undefined ? state.fromFolderId : null;
   const fromFolderName = state?.fromFolderName !== undefined ? state.fromFolderName : null;
   const preferOffline = !!state?.preferOffline;
-  const offlineLookupUserId = preferOffline && state?.offlineUserId !== undefined ? state.offlineUserId : null;
 
   const [documentDetails, setDocumentDetails] = useState<{
     id: number | null;
@@ -157,7 +156,9 @@ export const FileDetailPage: React.FC = () => {
       const numericId = Number(id);
       if (!isNaN(numericId) && (!isOnline || preferOffline)) {
         try {
-          const offlineRecord = await getOfflineDocument(numericId, preferOffline ? offlineLookupUserId : currentUserId);
+          const offlineRecord = currentUserId
+            ? await getOfflineDocument(numericId, currentUserId)
+            : undefined;
           if (isValidOfflineRecord(offlineRecord)) {
             let blobUrl: string;
             try {
@@ -187,7 +188,7 @@ export const FileDetailPage: React.FC = () => {
               uploadedAt: offlineRecord.lastModified,
             });
           } else if (offlineRecord) {
-            await deleteOfflineDocument(numericId, preferOffline ? offlineLookupUserId : currentUserId);
+            if (currentUserId) await deleteOfflineDocument(numericId, currentUserId);
             setDocumentDetails(null);
             setOfflineUnavailableMessage('Document unavailable offline. The saved copy was corrupted and has been removed.');
             setOfflineFeedback({ type: 'error', message: 'The offline copy was corrupted. Reconnect and save the document again.' });
@@ -337,7 +338,7 @@ export const FileDetailPage: React.FC = () => {
             fileSizeBytes: doc.fileSize,
             uploadedAt: doc.uploadedAt,
           });
-          setIsOfflineSaved(await isOfflineDocumentSaved(doc.documentId, currentUserId));
+          setIsOfflineSaved(currentUserId ? await isOfflineDocumentSaved(doc.documentId, currentUserId) : false);
           setIsLoading(false);
           return;
         }
@@ -390,7 +391,7 @@ export const FileDetailPage: React.FC = () => {
     };
 
     loadDetails();
-  }, [id, isLoggedIn, navigate, currentUserId, isOnline, preferOffline, offlineLookupUserId]);
+  }, [id, isLoggedIn, navigate, currentUserId, isOnline, preferOffline]);
 
   const handleTabChange = (tabName: string) => {
     if (tabName === 'Offline') {
@@ -433,6 +434,7 @@ export const FileDetailPage: React.FC = () => {
     setIsOfflineActionLoading(true);
     setOfflineFeedback({ type: 'info', message: 'Downloading document for offline use...' });
     try {
+      if (!currentUserId) throw new Error('Sign in before saving offline documents.');
       await offlineDocumentService.saveDocumentForOffline({
         documentId: documentDetails.id,
         userId: currentUserId,
@@ -465,7 +467,8 @@ export const FileDetailPage: React.FC = () => {
     setIsOfflineActionLoading(true);
     setOfflineFeedback({ type: 'info', message: 'Removing offline copy...' });
     try {
-      await deleteOfflineDocument(documentDetails.id, preferOffline ? offlineLookupUserId : currentUserId);
+      if (!currentUserId) throw new Error('Sign in before managing offline documents.');
+      await deleteOfflineDocument(documentDetails.id, currentUserId);
       setIsOfflineSaved(false);
       if (localBlobUrl) {
         replaceLocalBlobUrl(null);

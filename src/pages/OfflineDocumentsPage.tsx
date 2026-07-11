@@ -57,11 +57,14 @@ export const OfflineDocumentsPage: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [refreshingKey, setRefreshingKey] = useState<string | null>(null);
   const syncInProgressRef = useRef(false);
+  const currentUserId = Number(localStorage.getItem('userId'));
 
   const loadOfflineDocuments = async () => {
     setIsLoading(true);
     try {
-      const offlineRecords = await getAllOfflineDocuments();
+      const offlineRecords = Number.isFinite(currentUserId) && currentUserId > 0
+        ? await getAllOfflineDocuments(currentUserId)
+        : [];
       setRecords(offlineRecords);
     } catch (e) {
       console.error('Failed to load offline documents:', e);
@@ -82,7 +85,8 @@ export const OfflineDocumentsPage: React.FC = () => {
     });
 
     try {
-      const result = await offlineDocumentService.synchronizeOfflineDocuments();
+      if (!Number.isFinite(currentUserId) || currentUserId <= 0) return;
+      const result = await offlineDocumentService.synchronizeOfflineDocuments(currentUserId);
       setRecords(result.records);
       setFeedback({
         type: result.failed > 0 ? 'error' : 'success',
@@ -158,7 +162,7 @@ export const OfflineDocumentsPage: React.FC = () => {
   }, [records, searchQuery, sortOption]);
 
   const totalStorageUsed = records.reduce((sum, record) => sum + record.fileSize, 0);
-  const getRecordKey = (record: OfflineDocumentRecord) => record.key || `${record.userId ?? 'anonymous'}:${record.documentId}`;
+  const getRecordKey = (record: OfflineDocumentRecord) => `${currentUserId}:${record.documentId}`;
 
   const handleTabChange = (tabName: string) => {
     if (tabName === 'Offline') return;
@@ -172,7 +176,7 @@ export const OfflineDocumentsPage: React.FC = () => {
       state: {
         fromTab: 'Offline',
         preferOffline: true,
-        offlineUserId: record.userId ?? null,
+        offlineUserId: currentUserId,
       },
     });
   };
@@ -182,7 +186,7 @@ export const OfflineDocumentsPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await deleteOfflineDocument(record.documentId, record.userId);
+      await deleteOfflineDocument(record.documentId, currentUserId);
       setRecords((current) =>
         current.filter((item) =>
           item.key
@@ -204,7 +208,7 @@ export const OfflineDocumentsPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await deleteAllOfflineDocuments();
+      await deleteAllOfflineDocuments(currentUserId);
       setRecords([]);
       setFeedback({ type: 'success', message: 'All offline document copies were removed.' });
     } catch (e) {
@@ -219,7 +223,7 @@ export const OfflineDocumentsPage: React.FC = () => {
     setFeedback({ type: 'info', message: `Refreshing "${record.fileName}"...` });
 
     try {
-      const refreshedRecord = await offlineDocumentService.refreshOfflineCopy(record);
+      const refreshedRecord = await offlineDocumentService.refreshOfflineCopy(record, currentUserId);
       setRecords((current) =>
         current.map((item) => (getRecordKey(item) === key ? refreshedRecord : item))
       );
