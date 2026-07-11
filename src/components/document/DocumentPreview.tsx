@@ -6,6 +6,7 @@ export interface DocumentPreviewProps {
   fileSize: string;
   lastModified?: string;
   previewUrl: string | null;
+  localBlobUrl?: string | null;
   downloadUrl: string | null;
   contentType: string | null;
   onDownloadClick?: () => void;
@@ -20,6 +21,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   fileSize,
   lastModified = '2 hours ago',
   previewUrl,
+  localBlobUrl = null,
   contentType,
   onDownloadClick,
   onShareClick,
@@ -46,19 +48,23 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const isDocx = contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName.toLowerCase().endsWith('.docx');
   const isVideo = contentType?.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp|ogg)$/i.test(fileName.toLowerCase());
   const isUnsupported = !isPdf && !isImage && !isDocx && !isVideo;
+  const sourceUrl = localBlobUrl || previewUrl;
 
   useEffect(() => {
-    if (isDocx && previewUrl && docxContainerRef.current) {
+    let isCancelled = false;
+
+    if (isDocx && sourceUrl && docxContainerRef.current) {
       const renderDocxFile = async () => {
         setIsDocxLoading(true);
         setDocxError(null);
         try {
-          const response = await fetch(previewUrl);
+          const response = await fetch(sourceUrl);
+          if (isCancelled) return;
           if (!response.ok) {
             throw new Error(`Failed to fetch file: ${response.statusText}`);
           }
           const arrayBuffer = await response.arrayBuffer();
-          if (docxContainerRef.current) {
+          if (!isCancelled && docxContainerRef.current) {
             docxContainerRef.current.innerHTML = '';
             await docx.renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
               className: 'docx-viewer',
@@ -74,12 +80,22 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           }
           setDocxError(userMessage);
         } finally {
-          setIsDocxLoading(false);
+          if (!isCancelled) {
+            setIsDocxLoading(false);
+          }
         }
       };
       renderDocxFile();
+    } else if (docxContainerRef.current) {
+      docxContainerRef.current.innerHTML = '';
+      setIsDocxLoading(false);
+      setDocxError(null);
     }
-  }, [previewUrl, isDocx]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [sourceUrl, isDocx]);
 
   const getFileIconInfo = () => {
     if (isPdf) return { icon: 'picture_as_pdf', bg: 'bg-error-container text-error' };
@@ -92,16 +108,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const iconInfo = getFileIconInfo();
 
   // Determine if we should show zoom controls
-  const showZoomControls = !isUnsupported && !isVideo && !(isPdf && previewUrl);
+  const showZoomControls = !isUnsupported && !isVideo && !(isPdf && sourceUrl);
 
   const renderContent = () => {
     // 1. PDF
     if (isPdf) {
-      if (previewUrl) {
+      if (sourceUrl) {
         return (
           <div className="w-full h-full bg-surface-container-low">
             <iframe
-              src={previewUrl}
+              src={sourceUrl}
               title={fileName}
               className="w-full h-full border-none"
             />
@@ -174,7 +190,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             style={{ transform: `scale(${zoomLevel / 100})` }}
           >
             <img
-              src={previewUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800'}
+              src={sourceUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800'}
               alt={fileName}
               className="bg-surface max-w-3xl shadow-lg border border-outline-variant rounded object-contain"
             />
@@ -255,7 +271,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               }`}
             />
 
-            {!previewUrl && !isDocxLoading && !docxError && (
+            {!sourceUrl && !isDocxLoading && !docxError && (
               <div className="bg-surface w-full min-h-[600px] shadow border border-outline-variant rounded p-12 flex flex-col gap-6 select-text">
                 <header className="border-b pb-4 mb-4">
                   <h1 className="font-display-lg text-display-lg text-on-surface mb-2">{fileName}</h1>
@@ -282,13 +298,13 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
     // 3.5. Video
     if (isVideo) {
-      if (previewUrl) {
+      if (sourceUrl) {
         return (
           <div className="flex-1 overflow-auto p-container-padding bg-surface-container-low flex items-center justify-center custom-scrollbar">
             <div className="bg-surface max-w-4xl w-full shadow border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
               <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
                 <video
-                  src={previewUrl}
+                  src={sourceUrl}
                   controls
                   className="w-full h-full object-contain"
                   preload="metadata"
