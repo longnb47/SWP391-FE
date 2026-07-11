@@ -22,6 +22,10 @@ export const OAuth2RedirectHandler: React.FC = () => {
       if (userId) {
         localStorage.setItem('userId', userId);
       }
+      const role = params.get('role');
+      if (role) {
+        localStorage.setItem('userRole', role);
+      }
       if (fullName) {
         localStorage.setItem('userFullName', fullName);
       }

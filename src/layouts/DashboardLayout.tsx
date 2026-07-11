@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import SubscriptionModal from '../components/dashboard/SubscriptionModal';
+import BillingModal from '../components/dashboard/BillingModal';
 import { authService } from '../services/authService';
+import subscriptionService from '../services/subscriptionService';
+import { documentService } from '../services/documentService';
+import type { DocumentUploadResponse } from '../services/documentService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
+
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
 
 export interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -29,8 +43,57 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [activePlanName, setActivePlanName] = useState<string>('');
+  const [internalStorage, setInternalStorage] = useState<StorageUsage | undefined>(undefined);
   const isLoggedIn = !!localStorage.getItem('token');
   const { avatarUrl } = useUserProfile();
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const fetchDashboardData = async () => {
+      try {
+        const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
+          subscriptionService.getMySubscription().catch(() => null),
+          documentService.getMyDocuments().catch(() => null),
+          documentService.getSharedWithMeDocuments().catch(() => null),
+        ]);
+
+        let limitGb = 2;
+        if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
+          setActivePlanName(subRes.data.data.planName || 'FREE');
+          limitGb = subRes.data.data.storageLimitGb || 2;
+        } else {
+          setActivePlanName('FREE');
+        }
+
+        let totalUsed = 0;
+        if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
+          totalUsed += myDocsRes.data.data.reduce((sum: number, f: DocumentUploadResponse) => sum + (f.fileSize || 0), 0);
+        }
+        if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
+          totalUsed += sharedDocsRes.data.data.reduce((sum: number, f: DocumentUploadResponse) => sum + (f.fileSize || 0), 0);
+        }
+
+        const totalBytes = limitGb * 1024 * 1024 * 1024;
+        const usedPercentage = Math.min(100, Math.round((totalUsed / totalBytes) * 100));
+
+        setInternalStorage({
+          usedBytes: totalUsed,
+          totalBytes,
+          usedPercentage,
+          formattedUsed: formatBytes(totalUsed),
+          formattedTotal: `${limitGb} GB`
+        });
+      } catch (err) {
+        console.error('Error fetching dashboard storage details:', err);
+      }
+    };
+
+    fetchDashboardData();
+  }, [isLoggedIn]);
 
   const handleMobileMenuToggle = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -69,7 +132,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onTabChange={onTabChange}
         onUploadClick={onUploadClick}
         onNewFolderClick={onNewFolderClick}
-        storage={storage}
+        storage={storage || internalStorage}
       />
 
       {/* Main Content Area */}
@@ -80,12 +143,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onSearch={onSearch}
           onNotificationClick={() => alert('Notifications clicked!')}
           onHelpClick={() => alert('Help center clicked!')}
-          onUpgradeClick={() => alert('Upgrade modal clicked!')}
+          onUpgradeClick={() => setIsSubModalOpen(true)}
+          onBillingClick={() => setIsBillingModalOpen(true)}
           isLoggedIn={isLoggedIn}
           onLoginClick={() => navigate('/login')}
           onProfileClick={() => navigate('/profile')}
           onLogoutClick={handleLogout}
           avatarUrl={avatarUrl}
+          activePlanName={activePlanName}
         />
 
         {/* Scrollable Main Canvas */}
@@ -101,6 +166,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </main>
         )}
       </div>
+
+      {/* Subscription Plans Modal */}
+      <SubscriptionModal 
+        isOpen={isSubModalOpen}
+        onClose={() => setIsSubModalOpen(false)}
+      />
+
+      {/* Billing History Modal */}
+      <BillingModal
+        isOpen={isBillingModalOpen}
+        onClose={() => setIsBillingModalOpen(false)}
+      />
     </div>
   );
 };

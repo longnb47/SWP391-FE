@@ -2,7 +2,7 @@ import React from 'react';
 import type { TagResponse } from '../../services/tagService';
 import type { DocumentFilterSort } from '../../services/documentService';
 
-export const CONTENT_TYPE_OPTIONS: { label: string; value: string }[] = [
+const CONTENT_TYPE_OPTIONS: { label: string; value: string }[] = [
   { label: 'All types', value: '' },
   { label: 'PDF', value: 'application/pdf' },
   { label: 'Word (.docx)', value: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },

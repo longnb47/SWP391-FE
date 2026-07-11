@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { documentService } from '../../services/documentService';
 import { tagService } from '../../services/tagService';
+import subscriptionService from '../../services/subscriptionService';
 import type { TagResponse } from '../../services/tagService';
 
 export interface UploadModalProps {
@@ -30,6 +31,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [maxUploadSizeMb, setMaxUploadSizeMb] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -46,10 +48,22 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
+  const loadUploadLimit = async () => {
+    try {
+      const response = await subscriptionService.getMySubscription();
+      if (response.data && response.data.success) {
+        setMaxUploadSizeMb(response.data.data.maxUploadSizeMb);
+      }
+    } catch (error) {
+      console.error('Failed to load upload limit:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadTags();
+      loadUploadLimit();
       // Reset state
       setFile(null);
       setSelectedTags([]);
@@ -57,6 +71,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       setIsDropdownOpen(false);
       setNewTagName('');
       setNewTagColor('#ff6b00');
+      setMaxUploadSizeMb(null);
     }
   }, [isOpen]);
 
@@ -73,7 +88,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   if (!isOpen) return null;
 
-  // File size validation (Max 20MB for documents, 50MB for videos)
+  // File size validation (plan limit for non-videos, 50MB for videos)
   const validateAndSetFile = (selectedFile: File) => {
     if (selectedFile.size === 0) {
       alert('Upload failed: Empty files are not allowed.');
@@ -89,9 +104,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         return;
       }
     } else {
-      const MAX_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB
-      if (selectedFile.size > MAX_SIZE_LIMIT) {
-        alert('Upload failed: File size exceeds the maximum limit of 20MB.');
+      if (maxUploadSizeMb !== null && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
+        alert(`Upload failed: File size exceeds your plan limit of ${maxUploadSizeMb}MB.`);
         return;
       }
     }
@@ -252,7 +266,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,image/*"
+              accept=".pdf,.doc,.docx,.pptx,.xls,.xlsx,.png,.mp4,.mov,.avi,.webm,image/*,video/*"
               className="hidden"
             />
             <div className="w-14 h-14 bg-surface rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -272,7 +286,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             ) : (
               <div className="text-center">
                 <p className="text-body-lg font-bold text-on-surface">Drag and drop your files here</p>
-                <p className="text-body-md text-secondary mb-4">Support for PDF, DOCX, XLSX, and PNG (Max 20MB)</p>
+                <p className="text-body-md text-secondary mb-4">
+                  Support for PDF, DOCX, XLSX, PNG, and video ({maxUploadSizeMb ?? 'plan'}MB documents, 50MB videos)
+                </p>
                 <button
                   type="button"
                   onClick={(e) => {

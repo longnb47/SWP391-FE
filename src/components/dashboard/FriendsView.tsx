@@ -85,13 +85,13 @@ export const FriendsView: React.FC = () => {
     }
   };
 
-  const handleUnfriend = async (friendshipId: number, name: string) => {
+  const handleUnfriend = async (friendId: number, friendshipId: number, name: string) => {
     const confirmed = window.confirm(`Are you sure you want to unfriend ${name}?`);
     if (!confirmed) return;
 
     setPendingActionIds((prev) => [...prev, friendshipId]);
     try {
-      const response = await friendService.unfriend(friendshipId);
+      const response = await friendService.unfriend(friendId);
       if (response.data && response.data.success) {
         setFriends((prev) => prev.filter((f) => f.friendshipId !== friendshipId));
       } else {
@@ -353,7 +353,7 @@ export const FriendsView: React.FC = () => {
                       </div>
 
                       <button
-                        onClick={() => handleUnfriend(friend.friendshipId, friend.fullName || friend.email)}
+                        onClick={() => handleUnfriend(friend.userId, friend.friendshipId, friend.fullName || friend.email)}
                         disabled={pendingActionIds.includes(friend.friendshipId)}
                         className="px-3.5 py-1.5 text-xs text-error font-bold hover:bg-error-container/20 border border-error/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                       >

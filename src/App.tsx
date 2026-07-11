@@ -13,6 +13,7 @@ import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 import { offlineDocumentService } from './services/offlineDocumentService'
 
+import PaymentResultPage from './pages/PaymentResultPage'
 function App() {
   useEffect(() => {
     const handleOnline = () => {
@@ -41,6 +42,7 @@ function App() {
           <Route path="/offline-documents" element={<OfflineDocumentsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/share/:token" element={<SharedLinkPage />} />
+          <Route path="/payment-result" element={<PaymentResultPage />} />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

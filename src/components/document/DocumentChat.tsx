@@ -1,6 +1,10 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { chatService } from '../../services/chatService';
+import type { ChatSession, MessageSource } from '../../services/chatService';
+
+const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
 
 export interface ChatMessage {
   id: string;
@@ -9,6 +13,7 @@ export interface ChatMessage {
   senderName: string;
   avatar: string;
   citation?: string;
+  sources?: MessageSource[];
 }
 
 export interface DocumentChatProps {
@@ -64,35 +69,96 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Reset chat history when switching document or folder
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (isFolderMode) {
-      setMessages([
-        {
-          id: 'm1',
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'auto_awesome',
-          text: `I've analyzed the folder "${folderName || 'Folder'}" containing ${documentIds?.length || 0} ready documents. What would you like to know?`,
-        },
-      ]);
-    } else {
-      setMessages([
-        {
-          id: 'm1',
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'auto_awesome',
-          text: `I've analyzed "${fileName}". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?`,
-        },
-      ]);
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId, folderId, isFolderMode]);
+  const [sessionId, setSessionId] = useState<number | null>(null);
 
-  const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuBPOtHdkK3q1RuRa0eWcRdWrXzjGxNBb9CAYqiXL5iBvNhQZQKl7G0RGvQ79sGLRsIPXdXqVkDlXJqkt0UPTXJalUAP6p4RkSEjwYJ8H9iKPvuxItA4WRqbxBCNFbvShzoA909VlVFgtS8fL4dwS6fFkEFZzxHenm3dB1rqCqYPAgBhPHIkmjO0p_oSBgm0_2tiaaN_2CMEkV3a9xGXRPmwKn5fhRh9vsfU5eo4hGgX0RswA9Mpg5hf81M-6Ig3sUttXhMJjEOtPLvr";
+  const isChatReady = isFolderMode ? (documentIds?.length ?? 0) > 0 : status === 'READY';
+  const documentIdsStr = documentIds?.join(',') || '';
+
+  // Initialize/Load session when switching document or folder
+  useEffect(() => {
+    setSessionId(null);
+    setMessages([
+      {
+        id: 'm1',
+        sender: 'ai',
+        senderName: 'Aether AI',
+        avatar: 'auto_awesome',
+        text: isFolderMode
+          ? `I've analyzed the folder "${folderName || 'Folder'}" containing ${documentIds?.length || 0} ready documents. What would you like to know?`
+          : `I've analyzed "${fileName}". It covers enterprise expansion, AI integration, and financial targets. What would you like to know?`,
+      },
+    ]);
+
+    const areArraysEqual = (arr1: number[] | null, arr2: number[]) => {
+      if (!arr1) return false;
+      if (arr1.length !== arr2.length) return false;
+      const s1 = new Set(arr1);
+      return arr2.every((x) => s1.has(x));
+    };
+
+    const initSession = async () => {
+      // Don't run session init if not loaded yet or invalid IDs
+      if (isFolderMode && folderId === null) return;
+      if (!isFolderMode && documentId === null) return;
+
+      try {
+        const response = await chatService.getSessions();
+        if (response.data && response.data.success) {
+          const list = response.data.data;
+          
+          // Find matching session
+          let matched: ChatSession | undefined;
+          if (isFolderMode) {
+            // Match SELECTED_DOCUMENTS where IDs match exactly
+            matched = list.find(
+              (s) =>
+                s.mode === 'SELECTED_DOCUMENTS' &&
+                areArraysEqual(s.selectedDocumentIds, documentIds)
+            );
+          } else {
+            matched = list.find(
+              (s) =>
+                s.mode === 'SELECTED_DOCUMENTS' &&
+                s.selectedDocumentIds &&
+                s.selectedDocumentIds.length === 1 &&
+                s.selectedDocumentIds[0] === documentId
+            );
+          }
+
+          if (matched) {
+            setSessionId(matched.sessionId);
+            
+            // Load messages for this session
+            const messagesRes = await chatService.getSessionMessages(matched.sessionId);
+            if (messagesRes.data && messagesRes.data.success) {
+              const rawMsgs = messagesRes.data.data.messages;
+              const sorted = [...rawMsgs].sort((a, b) => a.messageId - b.messageId);
+              const formatted = sorted.map((msg): ChatMessage => {
+                const isAi = msg.role === 'ASSISTANT';
+                return {
+                  id: `msg-backend-${msg.messageId}`,
+                  sender: isAi ? 'ai' : 'user',
+                  senderName: isAi ? 'Aether AI' : 'You',
+                  avatar: isAi ? 'smart_toy' : userAvatar,
+                  text: msg.content,
+                  sources: msg.sources,
+                };
+              });
+
+              if (formatted.length > 0) {
+                setMessages(formatted);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Session initialization failed, falling back to stateless chat:', err);
+      }
+    };
+
+    initSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, folderId, isFolderMode, documentIdsStr]);
 
   // Auto-scroll chat history
   useEffect(() => {
@@ -101,7 +167,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim() || isAiLoading) return;
+    if (!inputVal.trim() || isAiLoading || !isChatReady) return;
 
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -116,90 +182,194 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
     setInputVal('');
     setIsAiLoading(true);
 
-    if (isFolderMode) {
+    const model = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
+    const savedTemp = localStorage.getItem('smartChatTemperature');
+    const temperature = savedTemp ? parseFloat(savedTemp) : 0.2;
+
+    const callStatelessFallback = async (q: string) => {
+      if (isFolderMode) {
+        try {
+          const response = await chatService.askMultiQuestion({
+            mode: 'SelectedDocuments',
+            selectedDocumentIds: documentIds || [],
+            folderId: folderId,
+            question: q,
+            model,
+            temperature,
+          });
+
+          if (response.data && response.data.success) {
+            const data = response.data.data;
+            
+            let citationStr = '';
+            if (data.usedDocumentIds && data.usedDocumentIds.length > 0 && documents) {
+              // Match usedDocumentIds with documents to find their names
+              const names = data.usedDocumentIds
+                .map((id) => {
+                  const doc = documents.find((d) => d.documentId === id);
+                  return doc ? doc.originalFileName : `Doc ID ${id}`;
+                });
+              citationStr = `Sources: ${names.join(', ')}`;
+            }
+
+            const aiResponse: ChatMessage = {
+              id: `msg-ai-${Date.now()}`,
+              sender: 'ai',
+              senderName: 'Aether AI',
+              avatar: 'smart_toy',
+              text: data.answer,
+              citation: citationStr || undefined,
+            };
+            setMessages((prev) => [...prev, aiResponse]);
+          } else {
+            const errorMsg = response.error || 'Failed to retrieve AI answer.';
+            const aiResponse: ChatMessage = {
+              id: `msg-ai-${Date.now()}`,
+              sender: 'ai',
+              senderName: 'Aether AI',
+              avatar: 'smart_toy',
+              text: `Error: ${errorMsg}`,
+            };
+            setMessages((prev) => [...prev, aiResponse]);
+          }
+        } catch (err) {
+          console.error('Error asking folder question:', err);
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: 'An unexpected error occurred while calling the AI folder service.',
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        }
+      } else if (documentId !== null) {
+        try {
+          const response = await chatService.askQuestion(documentId, q, model, temperature);
+          if (response.data && response.data.success) {
+            const data = response.data.data;
+            
+            let citationStr = '';
+            if (data.sources && data.sources.length > 0) {
+              const pages = data.sources
+                .map((s) => s.pageNumber)
+                .filter((p): p is number => p !== null && p !== undefined);
+              
+              if (pages.length > 0) {
+                const uniquePages = Array.from(new Set(pages)).sort((a, b) => a - b);
+                citationStr = `Page ${uniquePages.join(', ')}`;
+              } else {
+                const chunkIds = data.sources.map((s) => s.chunkId);
+                citationStr = `Chunks ${chunkIds.join(', ')}`;
+              }
+            }
+
+            const aiResponse: ChatMessage = {
+              id: `msg-ai-${Date.now()}`,
+              sender: 'ai',
+              senderName: 'Aether AI',
+              avatar: 'smart_toy',
+              text: data.answer,
+              citation: citationStr || undefined,
+            };
+            setMessages((prev) => [...prev, aiResponse]);
+          } else {
+            const errorMsg = response.error || 'Failed to retrieve AI answer.';
+            const aiResponse: ChatMessage = {
+              id: `msg-ai-${Date.now()}`,
+              sender: 'ai',
+              senderName: 'Aether AI',
+              avatar: 'smart_toy',
+              text: `Error: ${errorMsg}`,
+            };
+            setMessages((prev) => [...prev, aiResponse]);
+          }
+        } catch (err) {
+          console.error('Error asking question:', err);
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: 'An unexpected error occurred while calling the AI service.',
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        }
+      } else {
+        // Dynamic Mock AI responses based on keywords
+        setTimeout(() => {
+          let replyText = `Based on the document "${fileName}", I found relevant insights regarding your question. However, this is a mock setup. Please integrate the real AI backend to get dynamic responses!`;
+          let citation: string | undefined = undefined;
+
+          const lowerQuery = q.toLowerCase();
+          if (lowerQuery.includes('objective') || lowerQuery.includes('key objectives') || lowerQuery.includes('section 2')) {
+            replyText = `Based on Section 2 of the document, the Key Objectives for Q3 are:
+• Accelerating deployment of machine learning modules within the core platform.
+• Expanding the sales task force in the EMEA region by 15 personnel.
+• Reducing customer churn by 2% through proactive engagement initiatives.`;
+            citation = 'Page 1, Section 2';
+          } else if (lowerQuery.includes('financial') || lowerQuery.includes('projection') || lowerQuery.includes('revenue') || lowerQuery.includes('budget')) {
+            replyText = `According to Section 3 (Financial Projections), revenue targets for Q3 are set aggressively at $42M, representing strong quarter-over-quarter growth. Margin expansion remains a priority, driven by operational efficiencies. Also, the strategic pivot to AI will reallocate 20% of the R&D budget by Q4.`;
+            citation = 'Page 1, Section 3';
+          } else if (lowerQuery.includes('executive') || lowerQuery.includes('summary') || lowerQuery.includes('q3 strategic')) {
+            replyText = `In the Executive Summary (Section 1), the Q3 Strategic Outlook indicates a year-over-year SaaS growth of 14% despite macroeconomic headwinds. It highlights a strategic pivot towards AI-integrated workflows to capture enterprise market demands.`;
+            citation = 'Page 1, Section 1';
+          }
+
+          const aiResponse: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            senderName: 'Aether AI',
+            avatar: 'smart_toy',
+            text: replyText,
+            citation,
+          };
+
+          setMessages((prev) => [...prev, aiResponse]);
+          setIsAiLoading(false);
+        }, 1200);
+      }
+    };
+
+    let currentSessionId = sessionId;
+
+    if (currentSessionId === null) {
       try {
-        const response = await chatService.askMultiQuestion({
+        const title = isFolderMode ? `Chat Folder: ${folderName || 'Folder'}` : `Chat: ${fileName || 'Document'}`;
+        const createRes = await chatService.createSession({
+          title,
           mode: 'SelectedDocuments',
-          selectedDocumentIds: documentIds || [],
-          folderId: folderId,
-          question: query,
+          selectedDocumentIds: isFolderMode ? (documentIds || []) : [documentId!],
+          folderId: null,
+          useGeneralKnowledge: null,
+          model,
+          temperature,
         });
 
-        if (response.data && response.data.success) {
-          const data = response.data.data;
-          
-          let citationStr = '';
-          if (data.usedDocumentIds && data.usedDocumentIds.length > 0 && documents) {
-            // Match usedDocumentIds with documents to find their names
-            const names = data.usedDocumentIds
-              .map((id) => {
-                const doc = documents.find((d) => d.documentId === id);
-                return doc ? doc.originalFileName : `Doc ID ${id}`;
-              });
-            citationStr = `Sources: ${names.join(', ')}`;
-          }
-
-          const aiResponse: ChatMessage = {
-            id: `msg-ai-${Date.now()}`,
-            sender: 'ai',
-            senderName: 'Aether AI',
-            avatar: 'smart_toy',
-            text: data.answer,
-            citation: citationStr || undefined,
-          };
-          setMessages((prev) => [...prev, aiResponse]);
+        if (createRes.data && createRes.data.success) {
+          currentSessionId = createRes.data.data.sessionId;
+          setSessionId(currentSessionId);
         } else {
-          const errorMsg = response.error || 'Failed to retrieve AI answer.';
-          const aiResponse: ChatMessage = {
-            id: `msg-ai-${Date.now()}`,
-            sender: 'ai',
-            senderName: 'Aether AI',
-            avatar: 'smart_toy',
-            text: `Error: ${errorMsg}`,
-          };
-          setMessages((prev) => [...prev, aiResponse]);
+          throw new Error('Failed to create session');
         }
       } catch (err) {
-        console.error('Error asking folder question:', err);
-        const aiResponse: ChatMessage = {
-          id: `msg-ai-${Date.now()}`,
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'smart_toy',
-          text: 'An unexpected error occurred while calling the AI folder service.',
-        };
-        setMessages((prev) => [...prev, aiResponse]);
-      } finally {
-        setIsAiLoading(false);
+        console.warn('Failed to create session dynamically, using stateless fallback:', err);
       }
-    } else if (documentId !== null) {
+    }
+
+    if (currentSessionId !== null) {
       try {
-        const response = await chatService.askQuestion(documentId, query);
+        const response = await chatService.sendMessageToSession(currentSessionId, query);
         if (response.data && response.data.success) {
           const data = response.data.data;
-          
-          let citationStr = '';
-          if (data.sources && data.sources.length > 0) {
-            const pages = data.sources
-              .map((s) => s.pageNumber)
-              .filter((p): p is number => p !== null && p !== undefined);
-            
-            if (pages.length > 0) {
-              const uniquePages = Array.from(new Set(pages)).sort((a, b) => a - b);
-              citationStr = `Page ${uniquePages.join(', ')}`;
-            } else {
-              const chunkIds = data.sources.map((s) => s.chunkId);
-              citationStr = `Chunks ${chunkIds.join(', ')}`;
-            }
-          }
 
           const aiResponse: ChatMessage = {
             id: `msg-ai-${Date.now()}`,
             sender: 'ai',
             senderName: 'Aether AI',
             avatar: 'smart_toy',
-            text: data.answer,
-            citation: citationStr || undefined,
+            text: data.content,
+            sources: data.sources?.length > 0 ? data.sources : undefined,
           };
           setMessages((prev) => [...prev, aiResponse]);
         } else {
@@ -214,51 +384,14 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
           setMessages((prev) => [...prev, aiResponse]);
         }
       } catch (err) {
-        console.error('Error asking question:', err);
-        const aiResponse: ChatMessage = {
-          id: `msg-ai-${Date.now()}`,
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'smart_toy',
-          text: 'An unexpected error occurred while calling the AI service.',
-        };
-        setMessages((prev) => [...prev, aiResponse]);
+        console.error('Error sending message to session, trying stateless fallback:', err);
+        await callStatelessFallback(query);
       } finally {
         setIsAiLoading(false);
       }
     } else {
-      // Dynamic Mock AI responses based on keywords
-      setTimeout(() => {
-        let replyText = `Based on the document "${fileName}", I found relevant insights regarding your question. However, this is a mock setup. Please integrate the real AI backend to get dynamic responses!`;
-        let citation: string | undefined = undefined;
-
-        const lowerQuery = query.toLowerCase();
-        if (lowerQuery.includes('objective') || lowerQuery.includes('key objectives') || lowerQuery.includes('section 2')) {
-          replyText = `Based on Section 2 of the document, the Key Objectives for Q3 are:
-• Accelerating deployment of machine learning modules within the core platform.
-• Expanding the sales task force in the EMEA region by 15 personnel.
-• Reducing customer churn by 2% through proactive engagement initiatives.`;
-          citation = 'Page 1, Section 2';
-        } else if (lowerQuery.includes('financial') || lowerQuery.includes('projection') || lowerQuery.includes('revenue') || lowerQuery.includes('budget')) {
-          replyText = `According to Section 3 (Financial Projections), revenue targets for Q3 are set aggressively at $42M, representing strong quarter-over-quarter growth. Margin expansion remains a priority, driven by operational efficiencies. Also, the strategic pivot to AI will reallocate 20% of the R&D budget by Q4.`;
-          citation = 'Page 1, Section 3';
-        } else if (lowerQuery.includes('executive') || lowerQuery.includes('summary') || lowerQuery.includes('q3 strategic')) {
-          replyText = `In the Executive Summary (Section 1), the Q3 Strategic Outlook indicates a year-over-year SaaS growth of 14% despite macroeconomic headwinds. It highlights a strategic pivot towards AI-integrated workflows to capture enterprise market demands.`;
-          citation = 'Page 1, Section 1';
-        }
-
-        const aiResponse: ChatMessage = {
-          id: `msg-ai-${Date.now()}`,
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'smart_toy',
-          text: replyText,
-          citation,
-        };
-
-        setMessages((prev) => [...prev, aiResponse]);
-        setIsAiLoading(false);
-      }, 1200);
+      await callStatelessFallback(query);
+      setIsAiLoading(false);
     }
   };
 
@@ -369,16 +502,31 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
                   )}
                   
                   {/* Citation Badge */}
-                  {isAi && msg.citation && (
+                  {isAi && (msg.citation || (msg.sources && msg.sources.length > 0)) && (
                     <div 
-                      onClick={() => handleCitationClick(msg.citation!)}
+                      onClick={() => {
+                        if (msg.sources && msg.sources.length > 0) {
+                          const names = msg.sources.map((s) => {
+                            const doc = documents.find((d) => d.documentId === s.documentId);
+                            return doc ? doc.originalFileName : `Doc ID ${s.documentId}`;
+                          });
+                          alert(`Sources:\n\n${names.map((name, i) => `${i + 1}. ${name}`).join('\n')}`);
+                        } else {
+                          handleCitationClick(msg.citation!);
+                        }
+                      }}
                       className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group select-none"
                     >
                       <span className="material-symbols-outlined text-[14px] text-primary group-hover:text-primary-container select-none">
                         description
                       </span>
-                      <span className="font-mono-label text-mono-label text-on-surface-variant">
-                        {msg.citation}
+                      <span className="font-mono-label text-mono-label text-on-surface-variant max-w-[320px] truncate">
+                        {msg.sources && msg.sources.length > 0
+                          ? `Sources: ${msg.sources.map(s => {
+                              const doc = documents.find(d => d.documentId === s.documentId);
+                              return doc ? doc.originalFileName : `Doc ID ${s.documentId}`;
+                            }).join(', ')}`
+                          : msg.citation}
                       </span>
                     </div>
                   )}
@@ -413,15 +561,23 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
           <input
             type="text"
             className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3 px-4 outline-none"
-            placeholder={isFolderMode ? `Ask a question about folder "${folderName}"...` : "Ask a question about this document..."}
+            placeholder={
+              !isChatReady
+                ? isFolderMode
+                  ? 'No READY documents available in this folder'
+                  : 'This document is not READY for Q&A yet'
+                : isFolderMode
+                ? `Ask a question about folder "${folderName}"...`
+                : 'Ask a question about this document...'
+            }
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            disabled={isAiLoading}
+            disabled={isAiLoading || !isChatReady}
           />
           <button 
             type="submit"
-            className="m-2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all cursor-pointer"
-            disabled={isAiLoading}
+            className="m-2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-on-primary-fixed-variant shadow-[0_2px_4px_rgba(160,65,0,0.2)] transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            disabled={isAiLoading || !isChatReady || !inputVal.trim()}
           >
             <span className="material-symbols-outlined text-[18px] select-none">arrow_upward</span>
           </button>

@@ -26,7 +26,7 @@ interface SidebarContentProps {
 
 const navItems = [
   { name: 'My Files', icon: 'folder_open' },
-  { name: 'Smart Search', icon: 'travel_explore' },
+  { name: 'Smart Chat', icon: 'forum' },
   { name: 'Community', icon: 'public' },
   { name: 'Shared', icon: 'group' },
   { name: 'Offline', icon: 'offline_pin' },
@@ -44,6 +44,11 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   storage,
 }) => {
   const navigate = useNavigate();
+  const role = localStorage.getItem('userRole');
+  const items = [...navItems];
+  if (role === 'ADMIN') {
+    items.push({ name: 'Admin', icon: 'admin_panel_settings' });
+  }
 
   const handleTabClick = (tabName: string) => {
     if (tabName === 'Offline') {
@@ -72,7 +77,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <span className="material-symbols-outlined icon-fill select-none text-[22px]">cloud_sync</span>
           </div>
           <div>
-            <h1 className="font-title-lg text-title-lg font-black text-on-surface tracking-tight">AetherDocs</h1>
+            <h1 className="font-title-lg text-title-lg font-bold text-on-surface tracking-tight">AetherDocs</h1>
             <p className="font-label-md text-label-md text-secondary select-none">Intelligent Storage</p>
           </div>
         </div>
@@ -112,7 +117,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
       {/* Navigation Links */}
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto select-none">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = activeTab === item.name;
           return (
             <button
