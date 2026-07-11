@@ -37,8 +37,9 @@ export const AdminPlansView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal State for creating a new plan
+  // Modal State for creating or updating a plan
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [durationDays, setDurationDays] = useState(30);
@@ -60,6 +61,49 @@ export const AdminPlansView: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userSearch, setUserSearch] = useState('');
   const [totalUsers, setTotalUsers] = useState(12845);
+
+  const resetPlanForm = () => {
+    setName('');
+    setPrice(0);
+    setDurationDays(30);
+    setDescription('');
+    setStorageLimitGb(10);
+    setAllowedFormats('pdf,doc,docx,pptx,xls,xlsx,png,mp4');
+    setMaxUploadSizeMb(50);
+    setMultipleDocuments(true);
+    setVideoUpload(true);
+    setMonthlyTokenLimit(100000);
+  };
+
+  const openCreatePlanModal = () => {
+    setEditingPlan(null);
+    resetPlanForm();
+    setFormError(null);
+    setIsPlanModalOpen(true);
+  };
+
+  const openEditPlanModal = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setName(plan.name);
+    setPrice(plan.price);
+    setDurationDays(plan.durationDays);
+    setDescription(plan.description || '');
+    setStorageLimitGb(plan.storageLimitGb);
+    setAllowedFormats(plan.allowedFormats);
+    setMaxUploadSizeMb(plan.maxUploadSizeMb);
+    setMultipleDocuments(plan.multipleDocuments);
+    setVideoUpload(plan.videoUpload);
+    setMonthlyTokenLimit(plan.monthlyTokenLimit);
+    setFormError(null);
+    setIsPlanModalOpen(true);
+  };
+
+  const closePlanModal = () => {
+    if (isSubmitting) return;
+    setIsPlanModalOpen(false);
+    setEditingPlan(null);
+    setFormError(null);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -169,11 +213,14 @@ export const AdminPlansView: React.FC = () => {
     }
   };
 
-  const handleCreatePlanSubmit = async (e: React.FormEvent) => {
+  const handleSavePlanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    if (!name.trim()) {
+    const normalizedName = name.trim();
+    const isEditingFreePlan = editingPlan?.name.toUpperCase() === 'FREE';
+
+    if (!normalizedName) {
       setFormError('Plan Name is required.');
       return;
     }
@@ -181,7 +228,11 @@ export const AdminPlansView: React.FC = () => {
       setFormError('Price must be greater than or equal to 0.');
       return;
     }
-    if (name.toUpperCase() === 'FREE' && price !== 0) {
+    if (isEditingFreePlan && normalizedName.toUpperCase() !== 'FREE') {
+      setFormError('The FREE plan cannot be renamed.');
+      return;
+    }
+    if (normalizedName.toUpperCase() === 'FREE' && price !== 0) {
       setFormError('The FREE plan price must be exactly 0.');
       return;
     }
@@ -208,8 +259,8 @@ export const AdminPlansView: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const response = await subscriptionService.createSubscriptionPlan({
-        name: name.trim(),
+      const payload = {
+        name: normalizedName,
         price,
         durationDays,
         description: description.trim() || null,
@@ -219,28 +270,23 @@ export const AdminPlansView: React.FC = () => {
         multipleDocuments,
         videoUpload,
         monthlyTokenLimit,
-      });
+      };
+      const isEditing = editingPlan !== null;
+      const response = isEditing
+        ? await subscriptionService.updateSubscriptionPlan(editingPlan.id, payload)
+        : await subscriptionService.createSubscriptionPlan(payload);
 
       if (response.data && response.data.success) {
-        alert('New subscription plan created successfully!');
+        alert(isEditing ? 'Subscription plan updated successfully!' : 'New subscription plan created successfully!');
         setIsPlanModalOpen(false);
-        // Reset form fields
-        setName('');
-        setPrice(0);
-        setDurationDays(30);
-        setDescription('');
-        setStorageLimitGb(10);
-        setAllowedFormats('pdf,doc,docx,pptx,xls,xlsx,png,mp4');
-        setMaxUploadSizeMb(50);
-        setMultipleDocuments(true);
-        setVideoUpload(true);
-        setMonthlyTokenLimit(100000);
+        setEditingPlan(null);
+        resetPlanForm();
         loadData();
       } else {
-        setFormError(response.error || 'Failed to create subscription plan.');
+        setFormError(response.error || `Failed to ${isEditing ? 'update' : 'create'} subscription plan.`);
       }
     } catch (err) {
-      console.error('Create plan error:', err);
+      console.error(`${editingPlan ? 'Update' : 'Create'} plan error:`, err);
       setFormError('An unexpected network error occurred.');
     } finally {
       setIsSubmitting(false);
@@ -463,10 +509,13 @@ export const AdminPlansView: React.FC = () => {
                 <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Pricing Plans</h4>
               </div>
               <button
-                onClick={() => setIsPlanModalOpen(true)}
+                type="button"
+                onClick={openCreatePlanModal}
+                title="Create subscription plan"
+                aria-label="Create subscription plan"
                 className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors material-symbols-outlined cursor-pointer"
               >
-                edit
+                add
               </button>
             </div>
 
@@ -494,14 +543,26 @@ export const AdminPlansView: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between text-secondary text-[11px]">
                         <span>Storage: <strong>{plan.storageLimitGb} GB</strong></span>
-                        {!isFree && (
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan); }}
-                            className="text-error hover:underline text-[10px]"
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openEditPlanModal(plan); }}
+                            title={`Edit ${plan.name} plan`}
+                            aria-label={`Edit ${plan.name} plan`}
+                            className="text-primary hover:text-primary/70 transition-colors material-symbols-outlined text-[16px]"
                           >
-                            Delete
+                            edit
                           </button>
-                        )}
+                          {!isFree && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan); }}
+                              className="text-error hover:underline text-[10px]"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -511,7 +572,8 @@ export const AdminPlansView: React.FC = () => {
 
             {/* Dashed Create Button */}
             <button 
-              onClick={() => setIsPlanModalOpen(true)}
+              type="button"
+              onClick={openCreatePlanModal}
               className="mt-6 w-full py-2.5 border-2 border-dashed border-outline-variant hover:border-primary hover:text-primary text-on-surface-variant font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">add_circle</span>
@@ -605,7 +667,7 @@ export const AdminPlansView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <div 
-            onClick={() => setIsPlanModalOpen(false)}
+            onClick={closePlanModal}
             className="absolute inset-0 bg-scrim/40 backdrop-blur-[2px] animate-in fade-in"
           />
 
@@ -615,10 +677,13 @@ export const AdminPlansView: React.FC = () => {
             <div className="px-6 py-4 border-b border-outline-variant/60 flex items-center justify-between bg-surface-container/30">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[24px]">design_services</span>
-                <h3 className="font-title-lg text-title-lg font-bold text-on-surface">Configure Pricing Plan</h3>
+                <h3 className="font-title-lg text-title-lg font-bold text-on-surface">
+                  {editingPlan ? 'Edit Pricing Plan' : 'Configure Pricing Plan'}
+                </h3>
               </div>
               <button 
-                onClick={() => setIsPlanModalOpen(false)}
+                type="button"
+                onClick={closePlanModal}
                 className="p-1 text-secondary hover:text-on-surface hover:bg-surface-container rounded-full transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined">close</span>
@@ -626,7 +691,7 @@ export const AdminPlansView: React.FC = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleCreatePlanSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleSavePlanSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
               {formError && (
                 <div className="p-4 bg-error-container text-on-error-container border border-error/25 rounded-xl text-sm font-medium">
                   {formError}
@@ -769,7 +834,7 @@ export const AdminPlansView: React.FC = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/60">
                 <button
                   type="button"
-                  onClick={() => setIsPlanModalOpen(false)}
+                  onClick={closePlanModal}
                   className="px-4 py-2 border border-outline text-secondary hover:bg-surface-container rounded-xl font-semibold cursor-pointer text-sm transition-colors"
                 >
                   Cancel
@@ -779,7 +844,7 @@ export const AdminPlansView: React.FC = () => {
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-primary text-on-primary hover:bg-on-primary-fixed-variant rounded-xl font-semibold cursor-pointer text-sm transition-colors flex items-center gap-2"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Plan'}
+                  {isSubmitting ? 'Saving...' : editingPlan ? 'Update Plan' : 'Save Plan'}
                 </button>
               </div>
             </form>

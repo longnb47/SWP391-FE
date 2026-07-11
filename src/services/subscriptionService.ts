@@ -17,6 +17,8 @@ export interface SubscriptionPlan {
   active: boolean;
 }
 
+export type SubscriptionPlanPayload = Omit<SubscriptionPlan, 'id' | 'active'>;
+
 export interface UserSubscription {
   subscriptionId: number;
   status: string; // e.g. "ACTIVE", "EXPIRED"
@@ -74,8 +76,15 @@ export const subscriptionService = {
     return apiClient.get<BackendResponse<SubscriptionPlan[]>>('/subscription-plans');
   },
 
-  async createSubscriptionPlan(planData: Omit<SubscriptionPlan, 'id' | 'active'>): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
+  async createSubscriptionPlan(planData: SubscriptionPlanPayload): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
     return apiClient.post<BackendResponse<SubscriptionPlan>>('/subscription-plans', planData);
+  },
+
+  async updateSubscriptionPlan(
+    id: number,
+    planData: SubscriptionPlanPayload
+  ): Promise<ApiResponse<BackendResponse<SubscriptionPlan>>> {
+    return apiClient.put<BackendResponse<SubscriptionPlan>>(`/subscription-plans/${id}`, planData);
   },
 
   async deleteSubscriptionPlan(id: number): Promise<ApiResponse<BackendResponse<null>>> {
