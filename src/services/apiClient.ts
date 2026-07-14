@@ -13,13 +13,13 @@ export const apiClient = {
   ): Promise<ApiResponse<T>> {
     const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     
-    // Set default headers
+    // Chuẩn hóa header cho request JSON; FormData được giữ nguyên để browser tự gắn boundary.
     const headers = new Headers(options.headers);
     if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
 
-    // Attempt to add auth token if stored locally
+    // Gắn JWT hiện tại để backend xác định user và kiểm tra quyền truy cập document/chat.
     const token = localStorage.getItem('token');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
@@ -51,7 +51,7 @@ export const apiClient = {
                 localStorage.setItem('token', newAccessToken);
                 localStorage.setItem('refreshToken', newRefreshToken);
 
-                // Retry original request with new token
+                // Token đã được refresh thì thử lại chính request chat/document ban đầu một lần.
                 const retryHeaders = new Headers(options.headers);
                 if (!retryHeaders.has('Content-Type') && !(options.body instanceof FormData)) {
                   retryHeaders.set('Content-Type', 'application/json');
@@ -84,7 +84,7 @@ export const apiClient = {
           }
         }
 
-        // Clean credentials on failure/no-token and redirect to login if not already on public routes
+        // Khi refresh thất bại, xóa credential cũ và đưa user về login để tránh tiếp tục gọi API không xác thực.
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userEmail');

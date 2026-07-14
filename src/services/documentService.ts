@@ -291,6 +291,14 @@ export const documentService = {
     );
   },
 
+  async saveShareLinkToSharedWithMe(
+    token: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareResponse>>(
+      `/documents/share-link/${token}/save`,
+    );
+  },
+
   // Direct user sharing APIs
   async shareDocumentWithUser(
     documentId: number,

@@ -27,9 +27,15 @@ export const SharedLinkPage: React.FC = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    setIsSaved(false);
+    setSaveError(null);
+
     if (!token) {
       setErrorMsg('No sharing token provided.');
       setIsLoading(false);
@@ -108,6 +114,34 @@ export const SharedLinkPage: React.FC = () => {
     }
   };
 
+  const handleSaveToShared = async () => {
+    if (!token) {
+      setSaveError('The sharing token is missing.');
+      return;
+    }
+
+    if (!localStorage.getItem('token')) {
+      navigate('/login');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const response = await documentService.saveShareLinkToSharedWithMe(token);
+      if (response.data?.success) {
+        setIsSaved(true);
+      } else {
+        setSaveError(response.error || 'Failed to save this document.');
+      }
+    } catch (error) {
+      console.error('Failed to save shared document:', error);
+      setSaveError('Failed to save this document.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen gap-3 bg-surface select-none">
@@ -156,13 +190,32 @@ export const SharedLinkPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate('/login')}
-          className="text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-        >
-          Sign In / Register
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveToShared}
+            disabled={isSaving || isSaved}
+            title="Save this shared document to your Shared files"
+            className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:cursor-default disabled:opacity-60"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {isSaved ? 'bookmark' : 'bookmark_add'}
+            </span>
+            {isSaving ? 'Saving...' : isSaved ? 'Saved to Shared' : 'Save to Shared'}
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+          >
+            Sign In / Register
+          </button>
+        </div>
       </header>
+
+      {saveError && (
+        <div className="absolute top-16 right-6 z-20 rounded-lg border border-error/20 bg-error-container/90 px-3 py-2 text-xs text-on-error-container shadow-md">
+          {saveError}
+        </div>
+      )}
 
       {/* Main Preview Container */}
       <div className="flex-1 overflow-hidden h-full w-full">

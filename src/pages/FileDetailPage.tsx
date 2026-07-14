@@ -146,6 +146,7 @@ export const FileDetailPage: React.FC = () => {
       return;
     }
 
+    // Khi mở trang, tải metadata tài liệu trước để DocumentChat biết documentId và chỉ cho hỏi khi status là READY.
     const loadDetails = async () => {
       setIsLoading(true);
       setOfflineUnavailableMessage(null);
@@ -206,7 +207,7 @@ export const FileDetailPage: React.FC = () => {
         return;
       }
 
-      // Load user documents to dynamically calculate sidebar storage usage
+      // Tải document của user để tính động dung lượng hiển thị ở sidebar.
       try {
         const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
           subscriptionService.getMySubscription().catch(() => null),
@@ -236,7 +237,7 @@ export const FileDetailPage: React.FC = () => {
       }
 
       if (!isNaN(numericId)) {
-        // Fetch details from backend API
+        // Lấy chi tiết từ backend; nếu tài liệu không thuộc user thì lần lượt thử shared document và public document.
         let response;
         let isPublicDoc = false;
         let isSharedDoc = false;
@@ -244,13 +245,13 @@ export const FileDetailPage: React.FC = () => {
         try {
           response = await documentService.getDocumentDetail(numericId);
           if (!response.data || !response.data.success) {
-            // Check if it's shared with me
+            // Nếu không phải document owner thì thử document được share cho user.
             const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
             if (sharedResponse.data && sharedResponse.data.success) {
               response = sharedResponse;
               isSharedDoc = true;
             } else {
-              // Fallback for documents owned by other users (e.g. from community page)
+              // Fallback cuối cho document public của user khác, ví dụ mở từ community page.
               const publicResponse = await documentService.getPublicDocumentDetail(numericId);
               if (publicResponse.data && publicResponse.data.success) {
                 response = publicResponse;
@@ -344,7 +345,7 @@ export const FileDetailPage: React.FC = () => {
         }
       }
 
-      // Local mock fallback matches
+      // Dữ liệu mock chỉ được dùng khi không resolve được document thật từ backend.
       const listFile = mockFileItems.find((f) => f.id === id);
       if (listFile) {
         setDocumentDetails({
@@ -373,7 +374,7 @@ export const FileDetailPage: React.FC = () => {
             userId: null,
           });
         } else {
-          // Default fallback document
+          // Tạo document mock mặc định để UI vẫn có dữ liệu hiển thị khi backend không trả document.
           setDocumentDetails({
             id: null,
             name: 'Company Q3 Strategy & Market Analysis.pdf',
@@ -404,6 +405,7 @@ export const FileDetailPage: React.FC = () => {
     }
   };
 
+  // Chat online chỉ được render khi browser có mạng; đây là guard UI, backend vẫn kiểm tra quyền độc lập.
   const canUseOnlineChat = isOnline;
   const canSaveCurrentDocument =
     !!documentDetails?.id &&
@@ -564,7 +566,7 @@ export const FileDetailPage: React.FC = () => {
           onToggleChat={canUseOnlineChat ? () => setIsChatOpen(!isChatOpen) : undefined}
         />
 
-        {/* Right Side: AI Assistant Chat (40% width or closed) */}
+        {/* Chat nhận đúng documentId, tên file và trạng thái từ metadata để chạy single-document RAG. */}
         {isChatOpen && canUseOnlineChat && (
           <DocumentChat
             documentId={documentDetails.id}

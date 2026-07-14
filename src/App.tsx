@@ -40,6 +40,7 @@ function App() {
           <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
           <Route path="/dashboard" element={<DashboardPage />} />
+          {/* Route mở màn hình chi tiết tài liệu, nơi người dùng có thể preview và hỏi AI về đúng tài liệu đó. */}
           <Route path="/document/:id" element={<FileDetailPage />} />
           <Route path="/offline-documents" element={<OfflineDocumentsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
