@@ -11,6 +11,11 @@ export interface UploadModalProps {
   folderId?: number | null;
 }
 
+/**
+ * Coordinates the upload form and the post-upload document setup.
+ * Runtime flow: select file -> validate client-side -> upload document -> link tags -> move to folder.
+ * The backend remains the final authority for file type, plan limits, storage and video entitlement.
+ */
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
@@ -37,6 +42,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load available tags from database
+  // This data is loaded when the modal opens so the user can attach existing tags to the new document.
   const loadTags = async () => {
     try {
       const response = await tagService.getTags();
@@ -61,6 +67,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Opening a new upload starts a fresh form and reloads plan/tag data for the current user.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadTags();
       loadUploadLimit();
@@ -98,12 +105,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     const isVideo = selectedFile.type.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp)$/i.test(selectedFile.name);
     
     if (isVideo) {
+      // Video uploads use the fixed frontend guard; the backend separately checks the plan's videoUpload entitlement.
       const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
       if (selectedFile.size > VIDEO_SIZE_LIMIT) {
         alert('Upload failed: Video size exceeds the maximum limit of 50MB.');
         return;
       }
     } else {
+      // Non-video files use the maximum size returned by the user's active subscription plan when available.
       if (maxUploadSizeMb !== null && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
         alert(`Upload failed: File size exceeds your plan limit of ${maxUploadSizeMb}MB.`);
         return;
@@ -191,12 +200,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
     try {
       // 1. Upload the document
+      // The document is created first because tags and folder placement require its generated documentId.
       const uploadResponse = await documentService.uploadDocument(file);
       if (uploadResponse.data && uploadResponse.data.success) {
         const docId = uploadResponse.data.data.documentId;
         
         // 2. Link tags sequentially if any are selected
         if (selectedTags.length > 0) {
+          // Tag links are separate API calls because the upload endpoint only creates document metadata.
           for (const tag of selectedTags) {
             await tagService.addTagToDocument(docId, tag.tagId);
           }
@@ -204,6 +215,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
         // 3. Move to folder if folderId is provided
         if (folderId !== null && folderId !== undefined) {
+          // Folder placement is a follow-up update, so a document can still be uploaded at the root.
           await documentService.moveDocumentToFolder(docId, folderId);
         }
 

@@ -96,6 +96,7 @@ export const subscriptionService = {
   },
 
   async getMySubscription(): Promise<ApiResponse<BackendResponse<UserSubscription>>> {
+    // The upload modal uses maxUploadSizeMb for an early non-video size warning; backend validation is authoritative.
     return apiClient.get<BackendResponse<UserSubscription>>('/subscriptions/me');
   },
 

@@ -96,6 +96,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Primary CTAs */}
       <div className="px-container-padding mb-stack-lg">
         <div className="flex flex-col gap-stack-md">
+          {/* Delegate upload navigation to DashboardPage, which performs the login guard and opens UploadModal. */}
           <Button
             variant="primary"
             leftIcon="upload_file"
