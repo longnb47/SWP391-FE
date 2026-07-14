@@ -12,9 +12,9 @@ export interface UploadModalProps {
 }
 
 /**
- * Coordinates the upload form and the post-upload document setup.
- * Runtime flow: select file -> validate client-side -> upload document -> link tags -> move to folder.
- * The backend remains the final authority for file type, plan limits, storage and video entitlement.
+ * Điều phối form upload và các bước setup tài liệu sau upload.
+ * Luồng runtime: chọn file -> validate phía client -> upload document -> gắn tag -> đưa vào folder.
+ * Backend vẫn là nơi quyết định cuối cùng về loại file, giới hạn plan, storage và quyền upload video.
  */
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
@@ -42,7 +42,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load available tags from database
-  // This data is loaded when the modal opens so the user can attach existing tags to the new document.
+  // Dữ liệu được load khi modal mở để user có thể gắn tag có sẵn vào tài liệu mới.
   const loadTags = async () => {
     try {
       const response = await tagService.getTags();
@@ -67,7 +67,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Opening a new upload starts a fresh form and reloads plan/tag data for the current user.
+      // Mỗi lần mở form upload sẽ reset form và load lại dữ liệu plan/tag của user hiện tại.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadTags();
       loadUploadLimit();
@@ -105,14 +105,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     const isVideo = selectedFile.type.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp)$/i.test(selectedFile.name);
     
     if (isVideo) {
-      // Video uploads use the fixed frontend guard; the backend separately checks the plan's videoUpload entitlement.
+      // Video dùng guard cố định ở frontend; backend sẽ kiểm tra riêng entitlement videoUpload của plan.
       const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
       if (selectedFile.size > VIDEO_SIZE_LIMIT) {
         alert('Upload failed: Video size exceeds the maximum limit of 50MB.');
         return;
       }
     } else {
-      // Non-video files use the maximum size returned by the user's active subscription plan when available.
+      // File không phải video dùng kích thước tối đa từ subscription plan active của user nếu đã load được.
       if (maxUploadSizeMb !== null && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
         alert(`Upload failed: File size exceeds your plan limit of ${maxUploadSizeMb}MB.`);
         return;
@@ -200,14 +200,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
     try {
       // 1. Upload the document
-      // The document is created first because tags and folder placement require its generated documentId.
+      // Tạo document trước vì việc gắn tag và đưa vào folder cần documentId được sinh ra.
       const uploadResponse = await documentService.uploadDocument(file);
       if (uploadResponse.data && uploadResponse.data.success) {
         const docId = uploadResponse.data.data.documentId;
         
         // 2. Link tags sequentially if any are selected
         if (selectedTags.length > 0) {
-          // Tag links are separate API calls because the upload endpoint only creates document metadata.
+          // Gắn tag là các API call riêng vì endpoint upload chỉ tạo metadata tài liệu.
           for (const tag of selectedTags) {
             await tagService.addTagToDocument(docId, tag.tagId);
           }
@@ -215,7 +215,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
         // 3. Move to folder if folderId is provided
         if (folderId !== null && folderId !== undefined) {
-          // Folder placement is a follow-up update, so a document can still be uploaded at the root.
+          // Đưa vào folder là bước update tiếp theo, nên document vẫn có thể upload ở root.
           await documentService.moveDocumentToFolder(docId, folderId);
         }
 

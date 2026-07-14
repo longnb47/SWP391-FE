@@ -12,7 +12,7 @@ export interface TagResponse {
 
 export const tagService = {
   async getTags(): Promise<ApiResponse<BackendResponse<TagResponse[]>>> {
-    // Load the user's available tags for the upload modal's tag selector.
+    // Load các tag user có thể dùng cho tag selector trong upload modal.
     return apiClient.get<BackendResponse<TagResponse[]>>('/tags');
   },
 
@@ -32,7 +32,7 @@ export const tagService = {
   },
 
   async addTagToDocument(documentId: number, tagId: number): Promise<ApiResponse<BackendResponse<TagResponse>>> {
-    // Attach a selected tag after the document exists and has a database id.
+    // Gắn tag đã chọn sau khi document tồn tại và có database id.
     return apiClient.post<BackendResponse<TagResponse>>(`/documents/${documentId}/tags/${tagId}`);
   },
 

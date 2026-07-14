@@ -466,7 +466,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // Reload the visible document list after changing tab/folder and after a successful upload callback.
+    // Load lại danh sách document đang hiển thị sau khi đổi tab/folder hoặc upload thành công.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -640,12 +640,12 @@ export const DashboardPage: React.FC = () => {
 
   const handleUploadFile = () => {
     if (!isLoggedIn) {
-      // Upload is an authenticated workflow; unauthenticated users are redirected before opening the modal.
+      // Upload yêu cầu authentication; user chưa đăng nhập được redirect trước khi mở modal.
       alert('Please log in to upload files.');
       navigate('/login');
       return;
     }
-    // The modal receives the current folder so a successful upload can be placed there.
+    // Truyền folder hiện tại vào modal để upload thành công có thể được đặt đúng folder.
     setIsUploadModalOpen(true);
   };
 
@@ -1191,7 +1191,7 @@ export const DashboardPage: React.FC = () => {
       )}
       
       <UploadModal
-      {/* Refresh the dashboard state after the modal finishes upload, tagging and optional folder placement. */}
+      {/* Refresh state dashboard sau khi modal upload, gắn tag và đưa file vào folder hoàn tất. */}
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadSuccess={fetchFiles}

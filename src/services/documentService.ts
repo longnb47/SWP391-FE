@@ -85,7 +85,7 @@ export const documentService = {
     file: File,
     isPublic = false,
   ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    // Send multipart data to the backend; the server validates entitlement, stores the file and starts ingestion.
+    // Gửi multipart data lên backend; server validate entitlement, lưu file và bắt đầu ingestion.
     const formData = new FormData();
     formData.append("file", file);
     formData.append("isPublic", String(isPublic));
@@ -178,7 +178,7 @@ export const documentService = {
     documentId: number,
     folderId: number | null,
   ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
-    // Folder placement is intentionally separate from upload because the upload response supplies the documentId.
+    // Đưa file vào folder tách khỏi upload vì response upload mới cung cấp documentId.
     return apiClient.request<BackendResponse<DocumentUploadResponse>>(
       `/documents/${documentId}/folder`,
       {
