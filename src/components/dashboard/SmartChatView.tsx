@@ -36,7 +36,7 @@ export const SmartChatView: React.FC = () => {
   // Inline editing title states
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Document ID to originalFileName map for citation resolution
   const [documentNamesMap, setDocumentNamesMap] = useState<Record<number, string>>({});
@@ -510,9 +510,14 @@ export const SmartChatView: React.FC = () => {
 
         {/* Input Area (Sticky Bottom) */}
         <div className={isEmptyChat
-          ? "flex flex-1 items-center justify-center p-6 select-none"
+          ? "flex flex-1 flex-col items-center justify-center gap-5 p-6 select-none"
           : "absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-surface via-surface to-transparent pt-8 select-none z-10 shrink-0"
         }>
+          {isEmptyChat && (
+            <h2 className="text-title-lg font-semibold text-on-surface text-center">
+              Hôm nay bạn muốn tìm hiểu điều gì?
+            </h2>
+          )}
           <form onSubmit={handleSendMessage} className={`relative flex items-center bg-surface-container-lowest rounded-xl border border-outline-variant focus-within:border-primary-container focus-within:ring-4 focus-within:ring-primary-fixed transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)] ${isEmptyChat ? 'w-full max-w-3xl' : ''}`}>
             <input
               type="text"
