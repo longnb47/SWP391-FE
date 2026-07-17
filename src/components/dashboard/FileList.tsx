@@ -52,8 +52,8 @@ export const FileList: React.FC<FileListProps> = ({
   return (
     <section>
       {/* Table Header */}
-      <div className="flex items-center justify-between border-b border-surface-variant pb-2 mb-4 px-2.5 select-none">
-        <div className="flex gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-4 border-b border-surface-variant pb-2 mb-4 px-2.5 select-none">
+        <div className="flex items-center gap-4 min-w-0">
           <span className="font-label-md text-label-md text-secondary hover:text-on-surface cursor-pointer">
             Name
           </span>
@@ -62,11 +62,10 @@ export const FileList: React.FC<FileListProps> = ({
           </span>
         </div>
         
-        <div className="hidden sm:flex gap-16 text-right">
-          <span className="font-label-md text-label-md text-secondary w-32">Owner</span>
-          <span className="font-label-md text-label-md text-secondary w-32">Last modified</span>
-          <span className="font-label-md text-label-md text-secondary w-20">File size</span>
-        </div>
+        <span className="hidden md:block font-label-md text-label-md text-secondary text-right">Owner</span>
+        <span className="hidden md:block font-label-md text-label-md text-secondary text-right">Last modified</span>
+        <span className="hidden md:block font-label-md text-label-md text-secondary text-right">File size</span>
+        <span className="block" aria-hidden="true" />
       </div>
 
       {/* List Items */}

@@ -53,7 +53,7 @@ export const FileListItem: React.FC<FileListItemProps> = ({
   return (
     <div
       onClick={handleRowClick}
-      className="group flex items-center justify-between p-2.5 hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors border border-transparent hover:border-outline-variant/30 relative"
+      className="group grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-4 p-2.5 hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors border border-transparent hover:border-outline-variant/30 relative"
     >
       {/* Title & Icons */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -111,23 +111,23 @@ export const FileListItem: React.FC<FileListItemProps> = ({
       </div>
 
       {/* Metadata (Hidden on Mobile) */}
-      <div className="hidden sm:flex items-center gap-16 text-right select-none">
+      <div className="contents">
         <span 
-          className="font-body-md text-body-md text-secondary w-32 truncate"
+          className="hidden md:block font-body-md text-body-md text-secondary text-right truncate select-none"
           title={owner}
         >
           {owner}
         </span>
-        <span className="font-body-md text-body-md text-secondary w-32 truncate">
+        <span className="hidden md:block font-body-md text-body-md text-secondary text-right truncate select-none">
           {lastModified}
         </span>
-        <span className="font-body-md text-body-md text-secondary w-20 truncate">
+        <span className="hidden md:block font-body-md text-body-md text-secondary text-right truncate select-none">
           {size}
         </span>
       </div>
 
       {/* Row Action Controls */}
-      <div className="flex items-center gap-1 ml-2">
+      <div className="flex items-center justify-end gap-1 min-w-0">
         {/* Star Icon Button (Inline Toggle) */}
         {!isTrash && !isCommunity && (
           <button

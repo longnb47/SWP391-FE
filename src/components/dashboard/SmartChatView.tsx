@@ -36,6 +36,7 @@ export const SmartChatView: React.FC = () => {
   // Inline editing title states
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Document ID to originalFileName map for citation resolution
   const [documentNamesMap, setDocumentNamesMap] = useState<Record<number, string>>({});
@@ -105,27 +106,17 @@ export const SmartChatView: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSessions(true);
+    fetchSessions(false);
   }, []);
 
   // Load messages when activeSessionId changes
   useEffect(() => {
     if (activeSessionId === null) {
-      setMessages([
-        {
-          id: 'welcome-generic',
-          sender: 'ai',
-          senderName: 'Aether AI',
-          avatar: 'auto_awesome',
-          text: `Hello! I'm your Smart Chat assistant. I can search across all files in your storage to answer questions.\n\n**Current Configuration:**\n* **Model:** \`${activeModel}\`\n* **Creativity (Temperature):** \`${activeTemperature}\`\n* **Search Scope:** ${
-            includePublic 
-              ? 'My Files + Public Community Documents (Broad retrieval)' 
-              : 'My Files only (Private retrieval)'
-          }\n\nWhat would you like to ask today?`,
-        },
-      ]);
+      setMessages([]);
       return;
     }
+
+    if (isAiLoading) return;
 
     const loadMessages = async () => {
       try {
@@ -149,22 +140,6 @@ export const SmartChatView: React.FC = () => {
             };
           });
 
-          // If session is empty, add a friendly initial welcome message
-          if (formatted.length === 0) {
-            const activeSessionObj = sessions.find((s) => s.sessionId === activeSessionId);
-            formatted.push({
-              id: 'm1',
-              sender: 'ai',
-              senderName: 'Aether AI',
-              avatar: 'auto_awesome',
-              text: `Hello! I'm your Smart Chat assistant. I can search across all files in your storage to answer questions.\n\n**Current Session Configuration:**\n* **Model:** \`${activeSessionObj?.model || activeModel}\`\n* **Creativity (Temperature):** \`${activeSessionObj?.temperature ?? activeTemperature}\`\n* **Search Scope:** ${
-                activeSessionObj?.policy === 'DOCUMENTS_PLUS_GENERAL'
-                  ? 'My Files + Public Community Documents (Broad retrieval)'
-                  : 'My Files only (Private retrieval)'
-              }\n\nWhat would you like to ask today?`,
-            });
-          }
-
           setMessages(formatted);
         }
       } catch (err) {
@@ -173,8 +148,7 @@ export const SmartChatView: React.FC = () => {
     };
 
     loadMessages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, sessions]);
+  }, [activeSessionId, sessions, isAiLoading]);
 
 
 
@@ -315,19 +289,30 @@ export const SmartChatView: React.FC = () => {
   };
 
   const activeSessionObj = sessions.find((s) => s.sessionId === activeSessionId);
+  const isEmptyChat = messages.length === 0 && !isAiLoading;
 
   return (
     <div className="bg-surface rounded-2xl border border-surface-variant flex flex-col md:flex-row h-[calc(100vh-140px)] min-h-[500px] overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.02)]">
       
       {/* LEFT PANEL: Chat history sessions list */}
+      {isSidebarOpen && (
       <div className="w-full md:w-64 shrink-0 bg-surface-container-low border-b md:border-b-0 md:border-r border-surface-variant/40 flex flex-col h-1/3 md:h-full select-none">
-        <div className="p-4 border-b border-surface-variant/40">
+        <div className="p-3 border-b border-surface-variant/40 flex items-center gap-2">
           <button
             onClick={handleCreateNewSession}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
+            className="min-w-0 flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary text-on-primary rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             <span className="text-label-md">New Chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-secondary hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            title="Close chat history"
+            aria-label="Close chat history"
+          >
+            <span className="material-symbols-outlined text-[20px]">left_panel_close</span>
           </button>
         </div>
 
@@ -402,11 +387,24 @@ export const SmartChatView: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* RIGHT PANEL: Active chat session interface */}
       <div className="flex-1 flex flex-col min-w-0 h-2/3 md:h-full relative bg-surface-container-lowest/10">
+        {!isSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="absolute top-4 left-4 z-30 w-9 h-9 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-secondary hover:text-on-surface hover:bg-surface-container transition-colors shadow-sm cursor-pointer"
+            title="Open chat history"
+            aria-label="Open chat history"
+          >
+            <span className="material-symbols-outlined text-[20px]">left_panel_open</span>
+          </button>
+        )}
         
         {/* Header Info */}
+        {!isEmptyChat && (
         <div className="h-16 border-b border-surface-variant/40 flex items-center px-6 bg-surface-bright shrink-0 shadow-sm z-20 select-none">
           <div className="flex items-center gap-2.5 text-primary min-w-0 flex-1">
             <span className="material-symbols-outlined fill shrink-0">smart_toy</span>
@@ -429,8 +427,10 @@ export const SmartChatView: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Messages area */}
+        {!isEmptyChat && (
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar pb-36">
           {messages.map((msg) => {
             const isAi = msg.sender === 'ai';
@@ -506,10 +506,14 @@ export const SmartChatView: React.FC = () => {
           )}
           <div ref={chatEndRef} />
         </div>
+        )}
 
         {/* Input Area (Sticky Bottom) */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-surface via-surface to-transparent pt-8 select-none z-10 shrink-0">
-          <form onSubmit={handleSendMessage} className="relative flex items-center bg-surface-container-lowest rounded-xl border border-outline-variant focus-within:border-primary-container focus-within:ring-4 focus-within:ring-primary-fixed transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+        <div className={isEmptyChat
+          ? "flex flex-1 items-center justify-center p-6 select-none"
+          : "absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-surface via-surface to-transparent pt-8 select-none z-10 shrink-0"
+        }>
+          <form onSubmit={handleSendMessage} className={`relative flex items-center bg-surface-container-lowest rounded-xl border border-outline-variant focus-within:border-primary-container focus-within:ring-4 focus-within:ring-primary-fixed transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)] ${isEmptyChat ? 'w-full max-w-3xl' : ''}`}>
             <input
               type="text"
               className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-secondary-fixed-dim py-3.5 px-4 outline-none"
@@ -526,11 +530,11 @@ export const SmartChatView: React.FC = () => {
               <span className="material-symbols-outlined text-[20px] select-none">arrow_upward</span>
             </button>
           </form>
-          <div className="text-center mt-2.5">
+          {!isEmptyChat && <div className="text-center mt-2.5">
             <span className="font-mono-label text-[10px] text-secondary select-none">
               Aether Smart Chat retrieves knowledge from your index. AI can make mistakes.
             </span>
-          </div>
+          </div>}
         </div>
       </div>
     </div>
