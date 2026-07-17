@@ -84,11 +84,15 @@ export const documentService = {
   async uploadDocument(
     file: File,
     isPublic = false,
+    folderId: number | null = null,
   ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
     // Gửi multipart data lên backend; server validate entitlement, lưu file và bắt đầu ingestion.
     const formData = new FormData();
     formData.append("file", file);
     formData.append("isPublic", String(isPublic));
+    if (folderId !== null) {
+      formData.append("folderId", String(folderId));
+    }
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(
       "/documents/upload",
       formData,

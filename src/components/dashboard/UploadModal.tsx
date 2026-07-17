@@ -13,7 +13,7 @@ export interface UploadModalProps {
 
 /**
  * Điều phối form upload và các bước setup tài liệu sau upload.
- * Luồng runtime: chọn file -> validate phía client -> upload document -> gắn tag -> đưa vào folder.
+ * Luồng runtime: chọn file -> validate phía client -> upload document vào folder hiện tại -> gắn tag.
  * Backend vẫn là nơi quyết định cuối cùng về loại file, giới hạn plan, storage và quyền upload video.
  */
 export const UploadModal: React.FC<UploadModalProps> = ({
@@ -200,8 +200,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
     try {
       // 1. Upload the document
-      // Tạo document trước vì việc gắn tag và đưa vào folder cần documentId được sinh ra.
-      const uploadResponse = await documentService.uploadDocument(file);
+      // Tạo document trước vì việc gắn tag cần documentId được sinh ra.
+      const uploadResponse = await documentService.uploadDocument(file, false, folderId);
       if (uploadResponse.data && uploadResponse.data.success) {
         const docId = uploadResponse.data.data.documentId;
         
@@ -210,25 +210,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           // Gắn tag là các API call riêng vì endpoint upload chỉ tạo metadata tài liệu.
           for (const tag of selectedTags) {
             await tagService.addTagToDocument(docId, tag.tagId);
-          }
-        }
-
-        // 3. Move to folder if folderId is provided
-        if (folderId !== null && folderId !== undefined) {
-          // Đợi ingestion hoàn tất để các lần cập nhật status không ghi đè folder vừa gán.
-          let status = uploadResponse.data.data.status;
-          while (status !== 'READY' && status !== 'FAILED') {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const detailResponse = await documentService.getDocumentDetail(docId);
-            if (!detailResponse.data || !detailResponse.data.success) {
-              throw new Error(detailResponse.error || 'Failed to check document status');
-            }
-            status = detailResponse.data.data.status;
-          }
-
-          const moveResponse = await documentService.moveDocumentToFolder(docId, folderId);
-          if (!moveResponse.data || !moveResponse.data.success) {
-            throw new Error(moveResponse.error || 'Failed to move document to folder');
           }
         }
 
