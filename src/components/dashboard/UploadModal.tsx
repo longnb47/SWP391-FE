@@ -215,8 +215,21 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
         // 3. Move to folder if folderId is provided
         if (folderId !== null && folderId !== undefined) {
-          // Đưa vào folder là bước update tiếp theo, nên document vẫn có thể upload ở root.
-          await documentService.moveDocumentToFolder(docId, folderId);
+          // Đợi ingestion hoàn tất để các lần cập nhật status không ghi đè folder vừa gán.
+          let status = uploadResponse.data.data.status;
+          while (status !== 'READY' && status !== 'FAILED') {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const detailResponse = await documentService.getDocumentDetail(docId);
+            if (!detailResponse.data || !detailResponse.data.success) {
+              throw new Error(detailResponse.error || 'Failed to check document status');
+            }
+            status = detailResponse.data.data.status;
+          }
+
+          const moveResponse = await documentService.moveDocumentToFolder(docId, folderId);
+          if (!moveResponse.data || !moveResponse.data.success) {
+            throw new Error(moveResponse.error || 'Failed to move document to folder');
+          }
         }
 
         alert('File uploaded successfully!');
