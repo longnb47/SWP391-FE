@@ -472,7 +472,7 @@ export const SmartChatView: React.FC = () => {
                     {isAi && msg.sources && msg.sources.length > 0 && (
                       <div 
                         onClick={() => handleCitationClick(msg.sources!)}
-                        className="hidden mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group select-none text-left"
+                        className="!hidden mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group select-none text-left"
                       >
                         <span className="material-symbols-outlined text-[14px] text-primary group-hover:text-primary-container select-none">
                           description

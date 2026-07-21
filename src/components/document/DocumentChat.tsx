@@ -605,7 +605,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
                             handleCitationClick(msg.citation!);
                           }
                         }}
-                        className="hidden mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group select-none"
+                        className="!hidden mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded-md border border-outline-variant hover:bg-surface-variant cursor-pointer transition-colors group select-none"
                       >
                         <span className="material-symbols-outlined text-[14px] text-primary group-hover:text-primary-container select-none">
                           description
