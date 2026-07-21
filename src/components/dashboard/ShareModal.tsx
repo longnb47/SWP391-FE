@@ -480,7 +480,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                           type="button"
                           onClick={() => handleRevokeShare(share)}
                           disabled={isRevokingId === share.userId}
-                          className="px-2 py-1 text-[10px] text-error hover:bg-error-container/20 rounded font-bold transition-all cursor-pointer disabled:opacity-50"
+                          className="hidden px-2 py-1 text-[10px] text-error hover:bg-error-container/20 rounded font-bold transition-all cursor-pointer disabled:opacity-50"
                         >
                           {isRevokingId === share.userId ? 'Revoking...' : 'Revoke'}
                         </button>
