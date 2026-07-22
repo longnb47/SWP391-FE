@@ -16,6 +16,7 @@ import subscriptionService from "../services/subscriptionService";
 import CreateFolderModal from "../components/dashboard/CreateFolderModal";
 import RenameModal from "../components/dashboard/RenameModal";
 import MoveToFolderModal from "../components/dashboard/MoveToFolderModal";
+import SaveToFolderModal from "../components/dashboard/SaveToFolderModal";
 import FriendsView from "../components/dashboard/FriendsView";
 import SettingsView from "../components/dashboard/SettingsView";
 import FilterPanel from "../components/dashboard/FilterPanel";
@@ -90,6 +91,10 @@ export const DashboardPage: React.FC = () => {
   } | null>(null);
   const [isMoveToOpen, setIsMoveToOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<FileItem | null>(null);
+
+  // Save To Folder modal state
+  const [isSaveToOpen, setIsSaveToOpen] = useState(false);
+  const [saveTarget, setSaveTarget] = useState<FileItem | null>(null);
 
   // Share modal state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -992,6 +997,9 @@ export const DashboardPage: React.FC = () => {
       }
     } else if (action === "open") {
       handleItemClick(item);
+    } else if (action === "save_to_my_files") {
+      setSaveTarget(item);
+      setIsSaveToOpen(true);
     }
   };
 
@@ -1088,6 +1096,29 @@ export const DashboardPage: React.FC = () => {
       }
       alert(`Mock moved document to folder ID: ${targetFolderId || "Root"}`);
       fetchFiles();
+    }
+  };
+
+  const handleSaveToFolderSubmit = async (targetFolderId: number | string | null) => {
+    if (!saveTarget) return;
+    const numericDocId = Number(saveTarget.id);
+    const numericFolderId = targetFolderId !== null ? Number(targetFolderId) : null;
+
+    if (!isNaN(numericDocId) && !isFallbackMode) {
+      setIsLoadingFiles(true);
+      const response = activeTab === "Shared"
+        ? await documentService.saveSharedWithMeDocumentToMyFiles(numericDocId, numericFolderId)
+        : await documentService.savePublicDocumentToMyFiles(numericDocId, numericFolderId);
+
+      if (response.data && response.data.success) {
+        alert(`Successfully saved "${saveTarget.name}" to My Files!`);
+        fetchFiles();
+      } else {
+        alert(`Failed to save document: ${response.error || "Server error"}`);
+        setIsLoadingFiles(false);
+      }
+    } else {
+      alert(`Saved "${saveTarget.name}" to My Files!`);
     }
   };
 
@@ -1241,6 +1272,7 @@ export const DashboardPage: React.FC = () => {
                   onItemActionClick={handleItemActionClick}
                   isTrash={activeTab === "Trash"}
                   isCommunity={activeTab === "Community"}
+                  isShared={activeTab === "Shared"}
                   emptyTitle={
                     isFilterModeActive
                       ? "No documents match your filters"
@@ -1434,6 +1466,20 @@ export const DashboardPage: React.FC = () => {
         }))}
         currentFolderId={moveTarget?.folderId}
         onMove={handleMoveToSubmit}
+      />
+
+      <SaveToFolderModal
+        isOpen={isSaveToOpen}
+        onClose={() => {
+          setIsSaveToOpen(false);
+          setSaveTarget(null);
+        }}
+        documentName={saveTarget?.name || ""}
+        folders={allFolders.map((f) => ({
+          folderId: f.folderId,
+          name: f.name,
+        }))}
+        onSave={handleSaveToFolderSubmit}
       />
 
       {shareTarget && (
