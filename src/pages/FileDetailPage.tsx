@@ -625,7 +625,10 @@ export const FileDetailPage: React.FC = () => {
           }}
           isPublic={documentDetails.isPublic || false}
           onToggleVisibilityClick={
-            documentDetails.id && (documentDetails.userId === currentUserId || (!documentDetails.userId && isLoggedIn))
+            documentDetails.id &&
+            fromTab !== 'Community' &&
+            fromTab !== 'Shared' &&
+            documentDetails.userId === currentUserId
               ? handleToggleVisibility
               : undefined
           }
