@@ -129,10 +129,16 @@ export const chatService = {
     return apiClient.get<BackendResponse<SessionMessagesResponse>>(`/chat/sessions/${sessionId}/messages?page=${page}&size=${size}`);
   },
 
-  async sendMessageToSession(sessionId: number, question: string): Promise<ApiResponse<BackendResponse<ChatMessageFromBackend>>> {
+  async sendMessageToSession(
+    sessionId: number,
+    question: string,
+    model?: string | null,
+    useGeneralKnowledge?: boolean | null,
+    temperature?: number | null
+  ): Promise<ApiResponse<BackendResponse<ChatMessageFromBackend>>> {
     return apiClient.post<BackendResponse<ChatMessageFromBackend>>(
       `/chat/sessions/${sessionId}/messages`,
-      { question }
+      { question, model, useGeneralKnowledge, temperature }
     );
   },
 };

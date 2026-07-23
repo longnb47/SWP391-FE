@@ -269,10 +269,30 @@ export const SmartChatView: React.FC = () => {
         }
       }
 
-      const response = await chatService.sendMessageToSession(currentSessionId, query);
+      const response = await chatService.sendMessageToSession(
+        currentSessionId,
+        query,
+        activeModel,
+        includePublic,
+        activeTemperature
+      );
 
       if (response.data && response.data.success) {
         const data = response.data.data;
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.sessionId === currentSessionId
+              ? {
+                  ...session,
+                  model: activeModel,
+                  temperature: activeTemperature,
+                  policy: includePublic
+                    ? 'DOCUMENTS_PLUS_GENERAL'
+                    : 'DOCUMENTS_ONLY',
+                }
+              : session
+          )
+        );
 
         const aiResponse: ChatMessage = {
           id: `msg-ai-${Date.now()}`,
@@ -415,16 +435,16 @@ export const SmartChatView: React.FC = () => {
                 {activeSessionObj?.title || 'Smart Chat'}
               </h2>
               <p className="text-[11px] text-secondary font-medium flex items-center gap-2 truncate">
-                <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${activeSessionObj?.policy === 'DOCUMENTS_PLUS_GENERAL' ? 'bg-emerald-500' : 'bg-primary'}`} />
+                <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${includePublic ? 'bg-emerald-500' : 'bg-primary'}`} />
                 <span className="truncate">
-                  {activeSessionObj?.policy === 'DOCUMENTS_PLUS_GENERAL'
+                  {includePublic
                     ? 'Scope: My Files + Community (Public)'
                     : 'Scope: My Files only'}
                 </span>
                 <span className="text-outline shrink-0">•</span>
-                <span className="truncate">Model: <code className="bg-surface-container px-1 py-0.5 rounded text-primary font-mono text-[10px]">{activeSessionObj?.model || activeModel}</code></span>
+                <span className="truncate">Model: <code className="bg-surface-container px-1 py-0.5 rounded text-primary font-mono text-[10px]">{activeModel}</code></span>
                 <span className="text-outline shrink-0">•</span>
-                <span className="shrink-0">Temp: {activeSessionObj?.temperature ?? activeTemperature}</span>
+                <span className="shrink-0">Temp: {activeTemperature}</span>
               </p>
             </div>
           </div>
