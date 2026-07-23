@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { chatService } from '../../services/chatService';
 import { documentService } from '../../services/documentService';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import type { ChatSession, MessageSource } from '../../services/chatService';
 
 export interface ChatMessage {
@@ -16,6 +17,7 @@ export interface ChatMessage {
 }
 
 export const SmartChatView: React.FC = () => {
+  const confirmAction = useConfirm();
   // Read config from localStorage
   const includePublic = localStorage.getItem('smartChatIncludePublic') !== 'false';
   const activeModel = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
@@ -179,7 +181,7 @@ export const SmartChatView: React.FC = () => {
   // Delete session
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
     e.stopPropagation();
-    const confirmDelete = window.confirm('Are you sure you want to delete this chat session?');
+    const confirmDelete = await confirmAction({ title: 'Delete chat session?', message: 'Are you sure you want to delete this chat session?', confirmLabel: 'Delete' });
     if (!confirmDelete) return;
 
     try {

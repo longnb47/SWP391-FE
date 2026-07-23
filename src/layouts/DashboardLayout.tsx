@@ -9,6 +9,7 @@ import subscriptionService from '../services/subscriptionService';
 import { documentService } from '../services/documentService';
 import type { DocumentUploadResponse } from '../services/documentService';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
 
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -49,6 +50,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [internalStorage, setInternalStorage] = useState<StorageUsage | undefined>(undefined);
   const isLoggedIn = !!localStorage.getItem('token');
   const { avatarUrl } = useUserProfile();
+  const confirmAction = useConfirm();
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -104,7 +106,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   const handleLogout = async () => {
-    const confirmLogout = window.confirm('Are you sure you want to log out?');
+    const confirmLogout = await confirmAction({ title: 'Log out?', message: 'Are you sure you want to log out?', confirmLabel: 'Log out' });
     if (!confirmLogout) return;
 
     const refreshToken = localStorage.getItem('refreshToken');

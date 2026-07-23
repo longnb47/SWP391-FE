@@ -11,6 +11,7 @@ import {
 import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import { getFileIconDetails } from '../lib/fileHelpers';
 import { offlineDocumentService } from '../services/offlineDocumentService';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 type OfflineSortOption = 'NEWEST' | 'OLDEST' | 'NAME_ASC' | 'NAME_DESC' | 'SIZE_DESC';
 
@@ -47,6 +48,7 @@ const getFileTypeLabel = (record: OfflineDocumentRecord) => {
 };
 
 export const OfflineDocumentsPage: React.FC = () => {
+  const confirmAction = useConfirm();
   const navigate = useNavigate();
   const [records, setRecords] = useState<OfflineDocumentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -182,7 +184,7 @@ export const OfflineDocumentsPage: React.FC = () => {
   };
 
   const handleDeleteDocument = async (record: OfflineDocumentRecord) => {
-    const confirmed = window.confirm(`Delete the offline copy of "${record.fileName}" from this browser?`);
+    const confirmed = await confirmAction({ title: 'Delete offline copy?', message: `Delete the offline copy of "${record.fileName}" from this browser?`, confirmLabel: 'Delete' });
     if (!confirmed) return;
 
     try {
@@ -204,7 +206,7 @@ export const OfflineDocumentsPage: React.FC = () => {
   const handleDeleteAll = async () => {
     if (records.length === 0) return;
 
-    const confirmed = window.confirm(`Delete all ${records.length} offline document copies from this browser?`);
+    const confirmed = await confirmAction({ title: 'Delete all offline copies?', message: `Delete all ${records.length} offline document copies from this browser?`, confirmLabel: 'Delete all' });
     if (!confirmed) return;
 
     try {

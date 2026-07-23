@@ -4,6 +4,7 @@ import type { ApiResponse } from "./apiClient";
 export interface DocumentUploadResponse {
   documentId: number;
   userId: number;
+  ownerEmail?: string;
   folderId: number | null;
   originalFileName: string;
   s3Key: string;

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { friendService } from '../../services/friendService';
 import type { FriendResponse, FriendRequestResponse } from '../../services/friendService';
 
 export const FriendsView: React.FC = () => {
+  const confirmAction = useConfirm();
   const [activeSubTab, setActiveSubTab] = useState<'friends' | 'incoming' | 'outgoing'>('friends');
   const [friends, setFriends] = useState<FriendResponse[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequestResponse[]>([]);
@@ -13,7 +16,6 @@ export const FriendsView: React.FC = () => {
   // Send Friend Request states
   const [requestEmail, setRequestEmail] = useState('');
   const [isSendingRequest, setIsSendingRequest] = useState(false);
-  const [requestStatus, setRequestStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Operation loading state tracker
   const [pendingActionIds, setPendingActionIds] = useState<number[]>([]);
@@ -54,15 +56,11 @@ export const FriendsView: React.FC = () => {
     if (!requestEmail.trim()) return;
 
     setIsSendingRequest(true);
-    setRequestStatus(null);
 
     try {
       const response = await friendService.sendFriendRequest(requestEmail.trim());
       if (response.data && response.data.success) {
-        setRequestStatus({
-          type: 'success',
-          message: `Friend request sent to ${requestEmail} successfully!`,
-        });
+        toast.success(`Friend request sent to ${requestEmail} successfully!`);
         setRequestEmail('');
         // Refresh outgoing requests list
         const outgoingRes = await friendService.getOutgoingRequests();
@@ -70,23 +68,17 @@ export const FriendsView: React.FC = () => {
           setOutgoingRequests(outgoingRes.data.data);
         }
       } else {
-        setRequestStatus({
-          type: 'error',
-          message: response.error || 'Failed to send friend request.',
-        });
+        toast.error(response.error || 'Failed to send friend request.');
       }
     } catch {
-      setRequestStatus({
-        type: 'error',
-        message: 'An error occurred while sending the request.',
-      });
+      toast.error('An error occurred while sending the request.');
     } finally {
       setIsSendingRequest(false);
     }
   };
 
   const handleUnfriend = async (friendId: number, friendshipId: number, name: string) => {
-    const confirmed = window.confirm(`Are you sure you want to unfriend ${name}?`);
+    const confirmed = await confirmAction({ title: 'Unfriend?', message: `Are you sure you want to unfriend ${name}?`, confirmLabel: 'Unfriend' });
     if (!confirmed) return;
 
     setPendingActionIds((prev) => [...prev, friendshipId]);
@@ -226,20 +218,6 @@ export const FriendsView: React.FC = () => {
               </button>
             </div>
             
-            {requestStatus && (
-              <div
-                className={`p-2.5 rounded-lg border flex items-center gap-2 text-xs select-none animate-in fade-in ${
-                  requestStatus.type === 'success'
-                    ? 'bg-success-container/20 border-success/30 text-success'
-                    : 'bg-error-container/20 border-error/30 text-error'
-                }`}
-              >
-                <span className="material-symbols-outlined text-base">
-                  {requestStatus.type === 'success' ? 'check_circle' : 'error'}
-                </span>
-                <span>{requestStatus.message}</span>
-              </div>
-            )}
           </div>
         </form>
       </div>

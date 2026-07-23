@@ -4,6 +4,7 @@ import subscriptionService from '../../services/subscriptionService';
 import userService from '../../services/userService';
 import type { SubscriptionPlan, PaymentRevenue, SystemOrder } from '../../services/subscriptionService';
 import type { AdminUser } from '../../services/userService';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface MockOrder {
   id: number;
@@ -31,6 +32,7 @@ const initialMockUsers: AdminUser[] = [
 ];
 
 export const AdminPlansView: React.FC = () => {
+  const confirmAction = useConfirm();
   // Plan State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [revenue, setRevenue] = useState<PaymentRevenue | null>(null);
@@ -196,7 +198,7 @@ export const AdminPlansView: React.FC = () => {
       return;
     }
 
-    const confirmDelete = window.confirm(`Are you sure you want to delete the subscription plan "${plan.name}"?`);
+    const confirmDelete = await confirmAction({ title: 'Delete subscription plan?', message: `Are you sure you want to delete the subscription plan "${plan.name}"?`, confirmLabel: 'Delete' });
     if (!confirmDelete) return;
 
     try {

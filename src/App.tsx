@@ -13,6 +13,7 @@ import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 import { offlineDocumentService } from './services/offlineDocumentService'
 import AlertToast from './components/common/AlertToast'
+import { ConfirmProvider } from './contexts/ConfirmContext'
 
 import PaymentResultPage from './pages/PaymentResultPage'
 function App() {
@@ -32,8 +33,9 @@ function App() {
 
   return (
     <UserProfileProvider>
-      <AlertToast />
-      <BrowserRouter>
+      <ConfirmProvider>
+        <AlertToast />
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -51,7 +53,8 @@ function App() {
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </ConfirmProvider>
     </UserProfileProvider>
   )
 }

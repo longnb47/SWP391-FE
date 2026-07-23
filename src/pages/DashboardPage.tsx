@@ -14,6 +14,8 @@ import { folderService } from "../services/folderService";
 import type { DocumentFolderResponse } from "../services/folderService";
 import subscriptionService from "../services/subscriptionService";
 import CreateFolderModal from "../components/dashboard/CreateFolderModal";
+import ConfirmModal from "../components/common/ConfirmModal";
+import { useConfirm } from "../contexts/ConfirmContext";
 import RenameModal from "../components/dashboard/RenameModal";
 import MoveToFolderModal from "../components/dashboard/MoveToFolderModal";
 import SaveToFolderModal from "../components/dashboard/SaveToFolderModal";
@@ -26,7 +28,7 @@ import ShareModal from "../components/dashboard/ShareModal";
 import AdminPlansView from "../components/dashboard/AdminPlansView";
 import DocumentChat from "../components/document/DocumentChat";
 import { getFileIconDetails } from "../lib/fileHelpers";
-import { saveKnownUser, resolveOwnerEmail, resolveOwnerName } from "../lib/userHelpers";
+import { saveKnownUser, resolveOwnerEmail } from "../lib/userHelpers";
 import { mockFileItems } from "../features/dashboard/dashboard.mock";
 import type { FileItem } from "../features/dashboard/dashboard.mock";
 
@@ -46,6 +48,7 @@ const formatBytes = (bytes: number, decimals = 2) => {
 };
 
 export const DashboardPage: React.FC = () => {
+  const confirmAction = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -83,6 +86,8 @@ export const DashboardPage: React.FC = () => {
 
   // Modal states
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [folderDeleteTarget, setFolderDeleteTarget] = useState<FileItem | null>(null);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{
     id: string;
@@ -610,7 +615,7 @@ export const DashboardPage: React.FC = () => {
       fileType,
       icon: fileType === "image" ? "image" : "description",
       tags: doc.tags || [],
-      owner: activeTab === "Shared" ? resolveOwnerName(doc.userId) : resolveOwnerEmail(doc.userId),
+      owner: doc.ownerEmail || resolveOwnerEmail(doc.userId),
       lastModified: new Date(doc.uploadedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -809,6 +814,59 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleConfirmFolderDelete = async () => {
+    if (!folderDeleteTarget) return;
+
+    setIsDeletingFolder(true);
+    try {
+      if (!isFallbackMode) {
+        const numericFolderId = Number(folderDeleteTarget.id);
+        if (isNaN(numericFolderId)) {
+          alert("Invalid folder ID.");
+          return;
+        }
+
+        setIsLoadingFiles(true);
+        const response = await folderService.deleteFolder(numericFolderId);
+        if (response.data && response.data.success) {
+          if (currentFolderId === numericFolderId) {
+            setCurrentFolderId(null);
+            setCurrentFolderName(null);
+            setIsFolderChatOpen(false);
+          } else {
+            fetchFiles();
+          }
+          alert("Folder deleted. Documents have been moved to My Files.");
+        } else {
+          alert(`Failed to delete folder: ${response.error || "Server error"}`);
+          setIsLoadingFiles(false);
+        }
+      } else {
+        mockFileItems.forEach((mockItem) => {
+          if (String(mockItem.folderId) === String(folderDeleteTarget.id)) {
+            mockItem.folderId = null;
+          }
+        });
+        const folderIndex = mockFileItems.findIndex(
+          (mockItem) => mockItem.id === folderDeleteTarget.id,
+        );
+        if (folderIndex !== -1) mockFileItems.splice(folderIndex, 1);
+
+        if (String(currentFolderId) === String(folderDeleteTarget.id)) {
+          setCurrentFolderId(null);
+          setCurrentFolderName(null);
+          setIsFolderChatOpen(false);
+        } else {
+          fetchFiles();
+        }
+        alert("Folder deleted. Documents have been moved to My Files.");
+      }
+    } finally {
+      setIsDeletingFolder(false);
+      setFolderDeleteTarget(null);
+    }
+  };
+
   const handleItemActionClick = async (item: FileItem, action: string) => {
     if (!isLoggedIn) {
       alert("Please log in to perform this action.");
@@ -817,12 +875,14 @@ export const DashboardPage: React.FC = () => {
     }
     if (action === "delete") {
       if (item.type === "folder" || item.type === "folder_shared") {
-        alert("Folder deletion is not implemented yet as requested.");
+        if (item.type === "folder_shared") {
+          alert("Shared folders cannot be deleted.");
+          return;
+        }
+        setFolderDeleteTarget(item);
         return;
       }
-      const confirmDelete = window.confirm(
-        `Are you sure you want to delete "${item.name}"?`,
-      );
+      const confirmDelete = await confirmAction({ title: "Move document to Trash?", message: `Move "${item.name}" to Trash?`, confirmLabel: "Move to Trash" });
       if (!confirmDelete) return;
 
       const numericId = Number(item.id);
@@ -865,9 +925,7 @@ export const DashboardPage: React.FC = () => {
         fetchFiles();
       }
     } else if (action === "delete_permanent") {
-      const confirmDelete = window.confirm(
-        `Are you sure you want to permanently delete "${item.name}"? This action cannot be undone.`,
-      );
+      const confirmDelete = await confirmAction({ title: "Delete permanently?", message: `Permanently delete "${item.name}"? This action cannot be undone.`, confirmLabel: "Delete" });
       if (!confirmDelete) return;
 
       const numericId = Number(item.id);
@@ -1441,6 +1499,16 @@ export const DashboardPage: React.FC = () => {
         isOpen={isCreateFolderOpen}
         onClose={() => setIsCreateFolderOpen(false)}
         onCreate={handleCreateFolderSubmit}
+      />
+
+      <ConfirmModal
+        isOpen={folderDeleteTarget !== null}
+        title="Delete folder?"
+        message={`Delete "${folderDeleteTarget?.name || "this folder"}"? Documents in this folder will be moved to My Files.`}
+        confirmLabel="Delete"
+        isConfirming={isDeletingFolder}
+        onCancel={() => setFolderDeleteTarget(null)}
+        onConfirm={handleConfirmFolderDelete}
       />
 
       <RenameModal

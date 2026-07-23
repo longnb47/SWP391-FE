@@ -10,6 +10,7 @@ import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import subscriptionService from '../services/subscriptionService';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const formatBytes = (bytes: number, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
@@ -56,6 +57,7 @@ const isValidOfflineRecord = (record: OfflineDocumentRecord | undefined): record
   record.fileSize > 0;
 
 export const FileDetailPage: React.FC = () => {
+  const confirmAction = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -462,7 +464,7 @@ export const FileDetailPage: React.FC = () => {
   const handleRemoveOffline = async () => {
     if (!documentDetails?.id) return;
     if (removeInProgressRef.current) return;
-    const confirmed = window.confirm(`Remove the offline copy of "${documentDetails.name}" from this browser?`);
+    const confirmed = await confirmAction({ title: 'Remove offline copy?', message: `Remove the offline copy of "${documentDetails.name}" from this browser?`, confirmLabel: 'Remove' });
     if (!confirmed) return;
 
     removeInProgressRef.current = true;
