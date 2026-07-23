@@ -315,6 +315,14 @@ export const documentService = {
   },
 
   // Direct user sharing APIs
+  async getDocumentShares(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentShareResponse[]>>(
+      `/documents/${documentId}/shares/users`,
+    );
+  },
+
   async shareDocumentWithUser(
     documentId: number,
     email: string,
@@ -363,6 +371,43 @@ export const documentService = {
   ): Promise<ApiResponse<BackendResponse<DocumentUrlResponse>>> {
     return apiClient.get<BackendResponse<DocumentUrlResponse>>(
       `/documents/shared-with-me/${documentId}/download-url`,
+    );
+  },
+
+  async removeSharedWithMeDocument(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(
+      `/documents/shared-with-me/${documentId}`,
+    );
+  },
+
+  async bulkRemoveSharedWithMeDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/shared-with-me/bulk-remove",
+      documentIds,
+    );
+  },
+
+  async bulkMoveDocuments(
+    documentIds: number[],
+    folderId: number | null,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.request<BackendResponse<null>>("/documents/bulk-move", {
+      method: "PATCH",
+      body: JSON.stringify({ documentIds, folderId }),
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  async bulkTrashDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/bulk-trash",
+      documentIds,
     );
   },
 

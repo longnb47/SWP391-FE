@@ -14,6 +14,7 @@ import { folderService } from "../services/folderService";
 import type { DocumentFolderResponse } from "../services/folderService";
 import subscriptionService from "../services/subscriptionService";
 import CreateFolderModal from "../components/dashboard/CreateFolderModal";
+import Button from "../components/common/Button";
 import ConfirmModal from "../components/common/ConfirmModal";
 import { useConfirm } from "../contexts/ConfirmContext";
 import RenameModal from "../components/dashboard/RenameModal";
@@ -29,6 +30,7 @@ import AdminPlansView from "../components/dashboard/AdminPlansView";
 import DocumentChat from "../components/document/DocumentChat";
 import { getFileIconDetails } from "../lib/fileHelpers";
 import { saveKnownUser, resolveOwnerEmail } from "../lib/userHelpers";
+import { getReadSharedDocIds, markSharedDocAsRead } from "../lib/sharedDocReadDb";
 import { mockFileItems } from "../features/dashboard/dashboard.mock";
 import type { FileItem } from "../features/dashboard/dashboard.mock";
 
@@ -108,6 +110,9 @@ export const DashboardPage: React.FC = () => {
     name: string;
     isPublic: boolean;
   } | null>(null);
+
+  // Multi-selection state
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
 
   // Folder chat state
   const [isFolderChatOpen, setIsFolderChatOpen] = useState(false);
@@ -505,12 +510,20 @@ export const DashboardPage: React.FC = () => {
         setApiFiles(docsWithTags);
         setIsFallbackMode(false);
       } else if (activeTab === "Trash") {
-        setApiFolders([]);
-        const docsResponse = await documentService.getTrashDocuments();
+        const [foldersResponse, docsResponse] = await Promise.all([
+          folderService.getTrashFolders(),
+          documentService.getTrashDocuments(),
+        ]);
+
+        if (foldersResponse.data && foldersResponse.data.success) {
+          setApiFolders(foldersResponse.data.data);
+        } else {
+          setApiFolders([]);
+        }
 
         let trashDocs: DocumentUploadResponse[] = [];
         if (docsResponse.data && docsResponse.data.success) {
-          trashDocs = docsResponse.data.data;
+          trashDocs = docsResponse.data.data.filter((doc) => doc.folderId === null);
         }
 
         const docsWithTags = await Promise.all(
@@ -604,6 +617,8 @@ export const DashboardPage: React.FC = () => {
 
   // Map backend files to frontend FileItems
   const mapApiFileToFileItem = (doc: DocumentWithTags): FileItem => {
+    const currentUserId = Number(localStorage.getItem("userId")) || null;
+    const readSharedDocIds = getReadSharedDocIds(currentUserId);
     const fileType = doc.contentType.startsWith("image/")
       ? "image"
       : doc.contentType.includes("pdf") ||
@@ -611,6 +626,11 @@ export const DashboardPage: React.FC = () => {
           doc.contentType.includes("officedocument")
         ? "document"
         : "file";
+
+    const isUnread =
+      activeTab === "Shared" || (currentUserId !== null && doc.userId !== currentUserId)
+        ? !readSharedDocIds.has(doc.documentId)
+        : false;
 
     return {
       id: String(doc.documentId),
@@ -628,6 +648,7 @@ export const DashboardPage: React.FC = () => {
       size: formatBytes(doc.fileSize),
       isPublic: doc.isPublic,
       isStarred: doc.isStarred,
+      isUnread,
       tagDetails: doc.tagDetails || [],
       folderId: doc.folderId,
     };
@@ -769,12 +790,83 @@ export const DashboardPage: React.FC = () => {
     applyFilterChange();
   };
 
+  // Multi-selection handlers
+  const handleToggleSelectItem = (id: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedItemIds.size === filteredFiles.length) {
+      setSelectedItemIds(new Set());
+    } else {
+      setSelectedItemIds(new Set(filteredFiles.map((f) => f.id)));
+    }
+  };
+
+  const handleBulkMove = () => {
+    if (selectedItemIds.size === 0) return;
+    setIsMoveToOpen(true);
+  };
+
+  const handleBulkDeleteOrRemove = async () => {
+    if (selectedItemIds.size === 0) return;
+    const selectedArray = Array.from(selectedItemIds);
+    const numericIds = selectedArray.map(Number).filter((n) => !isNaN(n));
+
+    if (activeTab === "Shared") {
+      const confirmRemove = await confirmAction({
+        title: "Remove selected shared documents?",
+        message: `Are you sure you want to permanently remove access to these ${numericIds.length} selected shared documents? You will not be able to access them unless re-shared.`,
+        confirmLabel: "Remove Access",
+      });
+      if (!confirmRemove) return;
+
+      setIsLoadingFiles(true);
+      const response = await documentService.bulkRemoveSharedWithMeDocuments(numericIds);
+      if (response.data && response.data.success) {
+        alert("Removed selected shared documents successfully!");
+        setSelectedItemIds(new Set());
+        fetchFiles();
+      } else {
+        alert(`Failed to remove shared documents: ${response.error || "Server error"}`);
+        setIsLoadingFiles(false);
+      }
+    } else {
+      const confirmDelete = await confirmAction({
+        title: "Move selected documents to Trash?",
+        message: `Are you sure you want to move ${numericIds.length} selected items to Trash?`,
+        confirmLabel: "Move to Trash",
+      });
+      if (!confirmDelete) return;
+
+      setIsLoadingFiles(true);
+      const response = await documentService.bulkTrashDocuments(numericIds);
+      if (response.data && response.data.success) {
+        alert("Moved selected documents to trash successfully!");
+        setSelectedItemIds(new Set());
+        fetchFiles();
+      } else {
+        alert(`Failed to delete documents: ${response.error || "Server error"}`);
+        setIsLoadingFiles(false);
+      }
+    }
+  };
+
   // Trigger S3 File Upload Modal
   const handleTabChange = (tabName: string) => {
     setCurrentFolderId(null);
     setCurrentFolderName(null);
     setActiveTab(tabName);
     setIsFolderChatOpen(false);
+    setSelectedItemIds(new Set());
     exitFilterMode();
   };
 
@@ -808,6 +900,16 @@ export const DashboardPage: React.FC = () => {
       setCurrentFolderId(Number(item.id));
       setCurrentFolderName(item.name);
     } else {
+      const numericDocId = Number(item.id);
+      if (!isNaN(numericDocId) && (activeTab === "Shared" || item.isUnread)) {
+        const currentUserId = Number(localStorage.getItem("userId")) || null;
+        markSharedDocAsRead(numericDocId, currentUserId);
+        setApiFiles((prev) =>
+          prev.map((f) =>
+            f.documentId === numericDocId ? { ...f, isUnread: false } : f
+          )
+        );
+      }
       navigate(`/document/${item.id}`, {
         state: {
           fromTab: activeTab,
@@ -837,10 +939,9 @@ export const DashboardPage: React.FC = () => {
             setCurrentFolderId(null);
             setCurrentFolderName(null);
             setIsFolderChatOpen(false);
-          } else {
-            fetchFiles();
           }
-          alert("Folder deleted. Documents have been moved to My Files.");
+          alert("Folder moved to Trash successfully!");
+          fetchFiles();
         } else {
           alert(`Failed to delete folder: ${response.error || "Server error"}`);
           setIsLoadingFiles(false);
@@ -848,22 +949,21 @@ export const DashboardPage: React.FC = () => {
       } else {
         mockFileItems.forEach((mockItem) => {
           if (String(mockItem.folderId) === String(folderDeleteTarget.id)) {
-            mockItem.folderId = null;
+            mockItem.isDeleted = true;
           }
         });
         const folderIndex = mockFileItems.findIndex(
           (mockItem) => mockItem.id === folderDeleteTarget.id,
         );
-        if (folderIndex !== -1) mockFileItems.splice(folderIndex, 1);
+        if (folderIndex !== -1) mockFileItems[folderIndex].isDeleted = true;
 
         if (String(currentFolderId) === String(folderDeleteTarget.id)) {
           setCurrentFolderId(null);
           setCurrentFolderName(null);
           setIsFolderChatOpen(false);
-        } else {
-          fetchFiles();
         }
-        alert("Folder deleted. Documents have been moved to My Files.");
+        alert("Folder moved to Trash successfully!");
+        fetchFiles();
       }
     } finally {
       setIsDeletingFolder(false);
@@ -912,20 +1012,23 @@ export const DashboardPage: React.FC = () => {
       const numericId = Number(item.id);
       if (!isNaN(numericId) && !isFallbackMode) {
         setIsLoadingFiles(true);
-        const response = await documentService.restoreDocument(numericId);
+        const response =
+          item.type === "folder" || item.type === "folder_shared"
+            ? await folderService.restoreFolder(numericId)
+            : await documentService.restoreDocument(numericId);
         if (response.data && response.data.success) {
-          alert("Document restored successfully!");
+          alert(`${item.type === "folder" ? "Folder" : "Document"} restored successfully!`);
           fetchFiles();
         } else {
           alert(
-            `Failed to restore document: ${response.error || "Server error"}`,
+            `Failed to restore: ${response.error || "Server error"}`,
           );
           setIsLoadingFiles(false);
         }
       } else {
         const mockItem = mockFileItems.find((f) => f.id === item.id);
         if (mockItem) mockItem.isDeleted = false;
-        alert(`Mock restored document: ${item.name}`);
+        alert(`Mock restored: ${item.name}`);
         fetchFiles();
       }
     } else if (action === "delete_permanent") {
@@ -936,9 +1039,11 @@ export const DashboardPage: React.FC = () => {
       if (!isNaN(numericId) && !isFallbackMode) {
         setIsLoadingFiles(true);
         const response =
-          await documentService.deleteDocumentPermanently(numericId);
+          item.type === "folder" || item.type === "folder_shared"
+            ? await folderService.permanentlyDeleteFolder(numericId)
+            : await documentService.deleteDocumentPermanently(numericId);
         if (response.data && response.data.success) {
-          alert("Document permanently deleted!");
+          alert(`${item.type === "folder" ? "Folder" : "Document"} permanently deleted!`);
           fetchFiles();
         } else {
           alert(
@@ -949,7 +1054,7 @@ export const DashboardPage: React.FC = () => {
       } else {
         const idx = mockFileItems.findIndex((f) => f.id === item.id);
         if (idx !== -1) mockFileItems.splice(idx, 1);
-        alert(`Mock permanently deleted document: ${item.name}`);
+        alert(`Mock permanently deleted: ${item.name}`);
         fetchFiles();
       }
     } else if (action === "rename") {
@@ -1057,6 +1162,26 @@ export const DashboardPage: React.FC = () => {
       } else {
         alert("Sharing mock items is not supported.");
       }
+    } else if (action === "remove_shared") {
+      const confirmRemove = await confirmAction({
+        title: "Remove shared document?",
+        message: `Are you sure you want to permanently remove access to "${item.name}"? You will not be able to access it unless re-shared.`,
+        confirmLabel: "Remove Access",
+      });
+      if (!confirmRemove) return;
+
+      const numericId = Number(item.id);
+      if (!isNaN(numericId) && !isFallbackMode) {
+        setIsLoadingFiles(true);
+        const response = await documentService.removeSharedWithMeDocument(numericId);
+        if (response.data && response.data.success) {
+          alert(`Removed "${item.name}" from shared documents.`);
+          fetchFiles();
+        } else {
+          alert(`Failed to remove shared document: ${response.error || "Server error"}`);
+          setIsLoadingFiles(false);
+        }
+      }
     } else if (action === "open") {
       handleItemClick(item);
     } else if (action === "save_to_my_files") {
@@ -1134,6 +1259,23 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleMoveToSubmit = async (targetFolderId: number | string | null) => {
+    const numericFolderId = targetFolderId === null ? null : Number(targetFolderId);
+
+    if (selectedItemIds.size > 0) {
+      const numericIds = Array.from(selectedItemIds).map(Number).filter((n) => !isNaN(n));
+      setIsLoadingFiles(true);
+      const response = await documentService.bulkMoveDocuments(numericIds, numericFolderId);
+      if (response.data && response.data.success) {
+        alert("Bulk moved documents successfully!");
+        setSelectedItemIds(new Set());
+        fetchFiles();
+      } else {
+        alert(`Failed to move documents: ${response.error || "Server error"}`);
+        setIsLoadingFiles(false);
+      }
+      return;
+    }
+
     if (!moveTarget) return;
 
     if (!isFallbackMode) {
@@ -1215,6 +1357,21 @@ export const DashboardPage: React.FC = () => {
                 "Filtered results"
               ) : (
                 <div className="flex items-center gap-1.5">
+                  {currentFolderName && (
+                    <button
+                      onClick={() => {
+                        setCurrentFolderId(null);
+                        setCurrentFolderName(null);
+                        setIsFolderChatOpen(false);
+                      }}
+                      className="p-1 rounded-full text-secondary hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer mr-1"
+                      title="Back to root"
+                    >
+                      <span className="material-symbols-outlined text-[24px] select-none">
+                        arrow_back
+                      </span>
+                    </button>
+                  )}
                   <span
                     onClick={() => {
                       setCurrentFolderId(null);
@@ -1321,6 +1478,55 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Bulk Action Bar */}
+          {selectedItemIds.size > 0 && (() => {
+            const hasSelectedFolder = filteredFiles.some(
+              (f) => selectedItemIds.has(f.id) && (f.type === "folder" || f.type === "folder_shared")
+            );
+
+            return (
+              <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-xl px-4 py-2.5 mb-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">check_box</span>
+                  <span className="font-title-sm text-on-surface font-semibold">
+                    {selectedItemIds.size} {selectedItemIds.size === 1 ? "item" : "items"} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activeTab !== "Shared" && activeTab !== "Trash" && !hasSelectedFolder && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkMove}
+                      className="flex items-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">drive_file_move</span>
+                      Move Selected
+                    </Button>
+                  )}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleBulkDeleteOrRemove}
+                    className="flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {activeTab === "Shared" ? "person_remove" : "delete"}
+                    </span>
+                    {activeTab === "Shared" ? "Remove from Shared" : "Delete Selected"}
+                  </Button>
+                  <button
+                    onClick={() => setSelectedItemIds(new Set())}
+                    className="p-1 text-secondary hover:text-on-surface rounded-full hover:bg-surface-container-high ml-2 cursor-pointer"
+                    title="Deselect All"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Dynamic Layout switching */}
           <div className="flex gap-4 items-start">
             <div className="flex-1 min-w-0">
@@ -1332,6 +1538,9 @@ export const DashboardPage: React.FC = () => {
                   }
                   onItemClick={handleItemClick}
                   onItemActionClick={handleItemActionClick}
+                  selectedItemIds={selectedItemIds}
+                  onToggleSelectItem={handleToggleSelectItem}
+                  onToggleSelectAll={handleToggleSelectAll}
                   isTrash={activeTab === "Trash"}
                   isCommunity={activeTab === "Community"}
                   isShared={activeTab === "Shared"}
@@ -1507,9 +1716,9 @@ export const DashboardPage: React.FC = () => {
 
       <ConfirmModal
         isOpen={folderDeleteTarget !== null}
-        title="Delete folder?"
-        message={`Delete "${folderDeleteTarget?.name || "this folder"}"? Documents in this folder will be moved to My Files.`}
-        confirmLabel="Delete"
+        title="Move folder to Trash?"
+        message={`Move "${folderDeleteTarget?.name || "this folder"}" to Trash? Documents in this folder will also be moved to Trash.`}
+        confirmLabel="Move to Trash"
         isConfirming={isDeletingFolder}
         onCancel={() => setFolderDeleteTarget(null)}
         onConfirm={handleConfirmFolderDelete}
