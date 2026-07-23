@@ -26,7 +26,7 @@ import ShareModal from "../components/dashboard/ShareModal";
 import AdminPlansView from "../components/dashboard/AdminPlansView";
 import DocumentChat from "../components/document/DocumentChat";
 import { getFileIconDetails } from "../lib/fileHelpers";
-import { saveKnownUser, resolveOwnerEmail } from "../lib/userHelpers";
+import { saveKnownUser, resolveOwnerEmail, resolveOwnerName } from "../lib/userHelpers";
 import { mockFileItems } from "../features/dashboard/dashboard.mock";
 import type { FileItem } from "../features/dashboard/dashboard.mock";
 
@@ -610,7 +610,7 @@ export const DashboardPage: React.FC = () => {
       fileType,
       icon: fileType === "image" ? "image" : "description",
       tags: doc.tags || [],
-      owner: resolveOwnerEmail(doc.userId),
+      owner: activeTab === "Shared" ? resolveOwnerName(doc.userId) : resolveOwnerEmail(doc.userId),
       lastModified: new Date(doc.uploadedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

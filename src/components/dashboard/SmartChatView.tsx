@@ -17,7 +17,7 @@ export interface ChatMessage {
 
 export const SmartChatView: React.FC = () => {
   // Read config from localStorage
-  const includePublic = localStorage.getItem('smartChatIncludePublic') === 'true';
+  const includePublic = localStorage.getItem('smartChatIncludePublic') !== 'false';
   const activeModel = localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';
   const savedTemp = localStorage.getItem('smartChatTemperature');
   const activeTemperature = savedTemp ? parseFloat(savedTemp) : 0.2;

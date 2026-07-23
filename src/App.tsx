@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage'
 import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 import { offlineDocumentService } from './services/offlineDocumentService'
+import AlertToast from './components/common/AlertToast'
 
 import PaymentResultPage from './pages/PaymentResultPage'
 function App() {
@@ -31,6 +32,7 @@ function App() {
 
   return (
     <UserProfileProvider>
+      <AlertToast />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

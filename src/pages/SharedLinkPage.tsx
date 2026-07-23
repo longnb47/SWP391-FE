@@ -15,6 +15,7 @@ const formatBytes = (bytes: number, decimals = 2) => {
 export const SharedLinkPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const isLoggedIn = Boolean(localStorage.getItem('token'));
 
   const [documentDetails, setDocumentDetails] = useState<{
     id: number;
@@ -191,23 +192,26 @@ export const SharedLinkPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleSaveToShared}
-            disabled={isSaving || isSaved}
-            title="Save this shared document to your Shared files"
-            className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:cursor-default disabled:opacity-60"
-          >
-            <span className="material-symbols-outlined text-[16px]">
-              {isSaved ? 'bookmark' : 'bookmark_add'}
-            </span>
-            {isSaving ? 'Saving...' : isSaved ? 'Saved to Shared' : 'Save to Shared'}
-          </button>
-          <button
-            onClick={() => navigate('/login')}
-            className="text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-          >
-            Sign In / Register
-          </button>
+          {isLoggedIn ? (
+            <button
+              onClick={handleSaveToShared}
+              disabled={isSaving || isSaved}
+              title="Save this shared document to your Shared files"
+              className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:cursor-default disabled:opacity-60"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isSaved ? 'bookmark' : 'bookmark_add'}
+              </span>
+              {isSaving ? 'Saving...' : isSaved ? 'Saved to Shared' : 'Save to Shared'}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className="text-xs text-primary font-bold hover:bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              Sign In / Register
+            </button>
+          )}
         </div>
       </header>
 
