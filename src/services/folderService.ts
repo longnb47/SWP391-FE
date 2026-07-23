@@ -7,6 +7,8 @@ export interface DocumentFolderResponse {
   userId: number;
   name: string;
   isStarred: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,12 +33,26 @@ export const folderService = {
     return apiClient.delete<BackendResponse<null>>(`/document-folders/${folderId}`);
   },
 
+  async restoreFolder(folderId: number): Promise<ApiResponse<BackendResponse<DocumentFolderResponse>>> {
+    return apiClient.request<BackendResponse<DocumentFolderResponse>>(`/document-folders/${folderId}/restore`, {
+      method: 'PATCH',
+    });
+  },
+
+  async permanentlyDeleteFolder(folderId: number): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(`/document-folders/${folderId}/permanent`);
+  },
+
   async getFolderDocuments(folderId: number): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentUploadResponse[]>>(`/document-folders/${folderId}/documents`);
   },
 
   async getStarredFolders(): Promise<ApiResponse<BackendResponse<DocumentFolderResponse[]>>> {
     return apiClient.get<BackendResponse<DocumentFolderResponse[]>>('/document-folders/starred');
+  },
+
+  async getTrashFolders(): Promise<ApiResponse<BackendResponse<DocumentFolderResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentFolderResponse[]>>('/document-folders/trash');
   },
 
   async starFolder(folderId: number, isStarred: boolean): Promise<ApiResponse<BackendResponse<DocumentFolderResponse>>> {

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 export const AiAssistantConfigView: React.FC = () => {
   // Config states persisted in localStorage
   const [includePublic, setIncludePublic] = useState<boolean>(() => {
-    return localStorage.getItem('smartChatIncludePublic') === 'true';
+    return localStorage.getItem('smartChatIncludePublic') !== 'false';
   });
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     return localStorage.getItem('smartChatModel') || 'gemini-2.5-flash-lite';

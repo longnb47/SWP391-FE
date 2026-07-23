@@ -4,6 +4,7 @@ import type { ApiResponse } from "./apiClient";
 export interface DocumentUploadResponse {
   documentId: number;
   userId: number;
+  ownerEmail?: string;
   folderId: number | null;
   originalFileName: string;
   s3Key: string;
@@ -84,10 +85,15 @@ export const documentService = {
   async uploadDocument(
     file: File,
     isPublic = false,
+    folderId: number | null = null,
   ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    // Gửi multipart data lên backend; server validate entitlement, lưu file và bắt đầu ingestion.
     const formData = new FormData();
     formData.append("file", file);
     formData.append("isPublic", String(isPublic));
+    if (folderId !== null) {
+      formData.append("folderId", String(folderId));
+    }
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(
       "/documents/upload",
       formData,
@@ -177,6 +183,7 @@ export const documentService = {
     documentId: number,
     folderId: number | null,
   ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    // Đưa file vào folder tách khỏi upload vì response upload mới cung cấp documentId.
     return apiClient.request<BackendResponse<DocumentUploadResponse>>(
       `/documents/${documentId}/folder`,
       {
@@ -248,6 +255,16 @@ export const documentService = {
     );
   },
 
+  async savePublicDocumentToMyFiles(
+    documentId: number,
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    const url = folderId !== null
+      ? `/documents/public/${documentId}/save-to-my-files?folderId=${folderId}`
+      : `/documents/public/${documentId}/save-to-my-files`;
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
+  },
+
   // Document public link share APIs
   async createShareLink(
     documentId: number,
@@ -289,7 +306,23 @@ export const documentService = {
     );
   },
 
+  async saveShareLinkToSharedWithMe(
+    token: string,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse>>> {
+    return apiClient.post<BackendResponse<DocumentShareResponse>>(
+      `/documents/share-link/${token}/save`,
+    );
+  },
+
   // Direct user sharing APIs
+  async getDocumentShares(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentShareResponse[]>>(
+      `/documents/${documentId}/shares/users`,
+    );
+  },
+
   async shareDocumentWithUser(
     documentId: number,
     email: string,
@@ -339,6 +372,53 @@ export const documentService = {
     return apiClient.get<BackendResponse<DocumentUrlResponse>>(
       `/documents/shared-with-me/${documentId}/download-url`,
     );
+  },
+
+  async removeSharedWithMeDocument(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(
+      `/documents/shared-with-me/${documentId}`,
+    );
+  },
+
+  async bulkRemoveSharedWithMeDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/shared-with-me/bulk-remove",
+      documentIds,
+    );
+  },
+
+  async bulkMoveDocuments(
+    documentIds: number[],
+    folderId: number | null,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.request<BackendResponse<null>>("/documents/bulk-move", {
+      method: "PATCH",
+      body: JSON.stringify({ documentIds, folderId }),
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  async bulkTrashDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/bulk-trash",
+      documentIds,
+    );
+  },
+
+  async saveSharedWithMeDocumentToMyFiles(
+    documentId: number,
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    const url = folderId !== null
+      ? `/documents/shared-with-me/${documentId}/save-to-my-files?folderId=${folderId}`
+      : `/documents/shared-with-me/${documentId}/save-to-my-files`;
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
   },
 };
 export default documentService;

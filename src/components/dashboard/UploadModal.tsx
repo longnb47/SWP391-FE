@@ -11,6 +11,11 @@ export interface UploadModalProps {
   folderId?: number | null;
 }
 
+/**
+ * Điều phối form upload và các bước setup tài liệu sau upload.
+ * Luồng runtime: chọn file -> validate phía client -> upload document vào folder hiện tại -> gắn tag.
+ * Backend vẫn là nơi quyết định cuối cùng về loại file, giới hạn plan, storage và quyền upload video.
+ */
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
@@ -37,6 +42,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load available tags from database
+  // Dữ liệu được load khi modal mở để user có thể gắn tag có sẵn vào tài liệu mới.
   const loadTags = async () => {
     try {
       const response = await tagService.getTags();
@@ -61,6 +67,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Mỗi lần mở form upload sẽ reset form và load lại dữ liệu plan/tag của user hiện tại.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadTags();
       loadUploadLimit();
@@ -98,12 +105,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     const isVideo = selectedFile.type.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm|wmv|flv|3gp)$/i.test(selectedFile.name);
     
     if (isVideo) {
+      // Video dùng guard cố định ở frontend; backend sẽ kiểm tra riêng entitlement videoUpload của plan.
       const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
       if (selectedFile.size > VIDEO_SIZE_LIMIT) {
         alert('Upload failed: Video size exceeds the maximum limit of 50MB.');
         return;
       }
     } else {
+      // File không phải video dùng kích thước tối đa từ subscription plan active của user nếu đã load được.
       if (maxUploadSizeMb !== null && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
         alert(`Upload failed: File size exceeds your plan limit of ${maxUploadSizeMb}MB.`);
         return;
@@ -191,20 +200,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
     try {
       // 1. Upload the document
-      const uploadResponse = await documentService.uploadDocument(file);
+      // Tạo document trước vì việc gắn tag cần documentId được sinh ra.
+      const uploadResponse = await documentService.uploadDocument(file, false, folderId);
       if (uploadResponse.data && uploadResponse.data.success) {
         const docId = uploadResponse.data.data.documentId;
         
         // 2. Link tags sequentially if any are selected
         if (selectedTags.length > 0) {
+          // Gắn tag là các API call riêng vì endpoint upload chỉ tạo metadata tài liệu.
           for (const tag of selectedTags) {
             await tagService.addTagToDocument(docId, tag.tagId);
           }
-        }
-
-        // 3. Move to folder if folderId is provided
-        if (folderId !== null && folderId !== undefined) {
-          await documentService.moveDocumentToFolder(docId, folderId);
         }
 
         alert('File uploaded successfully!');

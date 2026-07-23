@@ -3,13 +3,19 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
+import ShareModal from '../components/dashboard/ShareModal';
+import SaveToFolderModal from '../components/dashboard/SaveToFolderModal';
+import { folderService } from '../services/folderService';
+import type { DocumentFolderResponse } from '../services/folderService';
 import { documentService } from '../services/documentService';
 import { isOfflinePreviewSupported, offlineDocumentService } from '../services/offlineDocumentService';
 import { deleteOfflineDocument, getOfflineDocument, isOfflineDocumentSaved } from '../lib/offlineDocumentDb';
+import { markSharedDocAsRead } from '../lib/sharedDocReadDb';
 import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import subscriptionService from '../services/subscriptionService';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../features/dashboard/dashboard.mock';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const formatBytes = (bytes: number, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
@@ -56,6 +62,7 @@ const isValidOfflineRecord = (record: OfflineDocumentRecord | undefined): record
   record.fileSize > 0;
 
 export const FileDetailPage: React.FC = () => {
+  const confirmAction = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,12 +90,16 @@ export const FileDetailPage: React.FC = () => {
     contentType: string | null;
     status: string;
     userId?: number | null;
+    isPublic?: boolean;
     fileSizeBytes?: number;
     uploadedAt?: string;
   } | null>(null);
   const [storage, setStorage] = useState<StorageUsage | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isSaveToOpen, setIsSaveToOpen] = useState(false);
+  const [allFolders, setAllFolders] = useState<DocumentFolderResponse[]>([]);
   const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
   const [isOfflineSaved, setIsOfflineSaved] = useState(false);
   const [isOfflineActionLoading, setIsOfflineActionLoading] = useState(false);
@@ -146,6 +157,7 @@ export const FileDetailPage: React.FC = () => {
       return;
     }
 
+    // Khi mở trang, tải metadata tài liệu trước để DocumentChat biết documentId và chỉ cho hỏi khi status là READY.
     const loadDetails = async () => {
       setIsLoading(true);
       setOfflineUnavailableMessage(null);
@@ -206,7 +218,7 @@ export const FileDetailPage: React.FC = () => {
         return;
       }
 
-      // Load user documents to dynamically calculate sidebar storage usage
+      // Tải document của user để tính động dung lượng hiển thị ở sidebar.
       try {
         const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
           subscriptionService.getMySubscription().catch(() => null),
@@ -236,7 +248,7 @@ export const FileDetailPage: React.FC = () => {
       }
 
       if (!isNaN(numericId)) {
-        // Fetch details from backend API
+        // Lấy chi tiết từ backend; nếu tài liệu không thuộc user thì lần lượt thử shared document và public document.
         let response;
         let isPublicDoc = false;
         let isSharedDoc = false;
@@ -244,13 +256,13 @@ export const FileDetailPage: React.FC = () => {
         try {
           response = await documentService.getDocumentDetail(numericId);
           if (!response.data || !response.data.success) {
-            // Check if it's shared with me
+            // Nếu không phải document owner thì thử document được share cho user.
             const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
             if (sharedResponse.data && sharedResponse.data.success) {
               response = sharedResponse;
               isSharedDoc = true;
             } else {
-              // Fallback for documents owned by other users (e.g. from community page)
+              // Fallback cuối cho document public của user khác, ví dụ mở từ community page.
               const publicResponse = await documentService.getPublicDocumentDetail(numericId);
               if (publicResponse.data && publicResponse.data.success) {
                 response = publicResponse;
@@ -288,6 +300,11 @@ export const FileDetailPage: React.FC = () => {
         
         if (response && response.data && response.data.success) {
           const doc = response.data.data;
+
+          // Chỉ đánh dấu đã đọc sau khi backend xác nhận tài liệu thực sự được share cho user hiện tại.
+          if (isSharedDoc) {
+            markSharedDocAsRead(doc.documentId, currentUserId);
+          }
           
           let previewUrl: string | null = null;
           let contentType: string | null = doc.contentType;
@@ -335,6 +352,7 @@ export const FileDetailPage: React.FC = () => {
             contentType,
             status: doc.status,
             userId: doc.userId,
+            isPublic: doc.isPublic,
             fileSizeBytes: doc.fileSize,
             uploadedAt: doc.uploadedAt,
           });
@@ -344,7 +362,7 @@ export const FileDetailPage: React.FC = () => {
         }
       }
 
-      // Local mock fallback matches
+      // Dữ liệu mock chỉ được dùng khi không resolve được document thật từ backend.
       const listFile = mockFileItems.find((f) => f.id === id);
       if (listFile) {
         setDocumentDetails({
@@ -373,7 +391,7 @@ export const FileDetailPage: React.FC = () => {
             userId: null,
           });
         } else {
-          // Default fallback document
+          // Tạo document mock mặc định để UI vẫn có dữ liệu hiển thị khi backend không trả document.
           setDocumentDetails({
             id: null,
             name: 'Company Q3 Strategy & Market Analysis.pdf',
@@ -393,6 +411,51 @@ export const FileDetailPage: React.FC = () => {
     loadDetails();
   }, [id, isLoggedIn, navigate, currentUserId, isOnline, preferOffline]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    folderService.getFolders().then((res) => {
+      if (res.data && res.data.success) {
+        setAllFolders(res.data.data);
+      }
+    }).catch((e) => console.error('Failed to load user folders:', e));
+  }, [isLoggedIn]);
+
+  const handleSaveToMyFilesSubmit = async (targetFolderId: number | string | null) => {
+    if (!documentDetails?.id) return;
+    const numericFolderId = targetFolderId === null ? null : Number(targetFolderId);
+    try {
+      let response = await documentService.savePublicDocumentToMyFiles(documentDetails.id, numericFolderId);
+      if (!response.data || !response.data.success) {
+        response = await documentService.saveSharedWithMeDocumentToMyFiles(documentDetails.id, numericFolderId);
+      }
+
+      if (response.data && response.data.success) {
+        alert(`Saved "${documentDetails.name}" to My Files successfully!`);
+        setIsSaveToOpen(false);
+      } else {
+        alert(response.error || 'Failed to save document to My Files.');
+      }
+    } catch {
+      alert('An error occurred while saving the document to My Files.');
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!documentDetails?.id) return;
+    const nextPublicState = !documentDetails.isPublic;
+    try {
+      const response = await documentService.updateDocumentVisibility(documentDetails.id, nextPublicState);
+      if (response.data && response.data.success) {
+        setDocumentDetails((prev) => (prev ? { ...prev, isPublic: nextPublicState } : null));
+        alert(nextPublicState ? 'Document is now Publicly visible in Community!' : 'Document is now Private!');
+      } else {
+        alert(response.error || 'Failed to update document visibility.');
+      }
+    } catch {
+      alert('An error occurred while updating document visibility.');
+    }
+  };
+
   const handleTabChange = (tabName: string) => {
     if (tabName === 'Offline') {
       navigate('/offline-documents');
@@ -404,6 +467,7 @@ export const FileDetailPage: React.FC = () => {
     }
   };
 
+  // Chat online chỉ được render khi browser có mạng; đây là guard UI, backend vẫn kiểm tra quyền độc lập.
   const canUseOnlineChat = isOnline;
   const canSaveCurrentDocument =
     !!documentDetails?.id &&
@@ -460,7 +524,7 @@ export const FileDetailPage: React.FC = () => {
   const handleRemoveOffline = async () => {
     if (!documentDetails?.id) return;
     if (removeInProgressRef.current) return;
-    const confirmed = window.confirm(`Remove the offline copy of "${documentDetails.name}" from this browser?`);
+    const confirmed = await confirmAction({ title: 'Remove offline copy?', message: `Remove the offline copy of "${documentDetails.name}" from this browser?`, confirmLabel: 'Remove' });
     if (!confirmed) return;
 
     removeInProgressRef.current = true;
@@ -545,7 +609,26 @@ export const FileDetailPage: React.FC = () => {
               alert(`Downloading "${documentDetails.name}"...`);
             }
           }}
-          onShareClick={() => alert(`Sharing "${documentDetails.name}" link...`)}
+          onShareClick={() => {
+            if (documentDetails.id) {
+              setIsShareModalOpen(true);
+            } else {
+              alert('Sharing is not available for offline or unindexed preview documents.');
+            }
+          }}
+          onSaveToMyFilesClick={() => {
+            if (documentDetails.id) {
+              setIsSaveToOpen(true);
+            } else {
+              alert('Save to My Files is not available for this document.');
+            }
+          }}
+          isPublic={documentDetails.isPublic || false}
+          onToggleVisibilityClick={
+            documentDetails.id && (documentDetails.userId === currentUserId || (!documentDetails.userId && isLoggedIn))
+              ? handleToggleVisibility
+              : undefined
+          }
           onBack={() => {
             if (fromTab === 'Offline') {
               navigate('/offline-documents');
@@ -564,7 +647,7 @@ export const FileDetailPage: React.FC = () => {
           onToggleChat={canUseOnlineChat ? () => setIsChatOpen(!isChatOpen) : undefined}
         />
 
-        {/* Right Side: AI Assistant Chat (40% width or closed) */}
+        {/* Chat nhận đúng documentId, tên file và trạng thái từ metadata để chạy single-document RAG. */}
         {isChatOpen && canUseOnlineChat && (
           <DocumentChat
             documentId={documentDetails.id}
@@ -609,6 +692,32 @@ export const FileDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {documentDetails?.id && (
+        <>
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            documentId={documentDetails.id}
+            documentName={documentDetails.name}
+            isInitiallyPublic={documentDetails.isPublic || false}
+            onVisibilityChange={(isPublic) => {
+              setDocumentDetails((prev) => (prev ? { ...prev, isPublic } : null));
+            }}
+          />
+
+          <SaveToFolderModal
+            isOpen={isSaveToOpen}
+            onClose={() => setIsSaveToOpen(false)}
+            documentName={documentDetails.name}
+            folders={allFolders.map((f) => ({
+              folderId: f.folderId,
+              name: f.name,
+            }))}
+            onSave={handleSaveToMyFilesSubmit}
+          />
+        </>
+      )}
     </DashboardLayout>
   );
 };

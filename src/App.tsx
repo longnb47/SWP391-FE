@@ -12,6 +12,8 @@ import ProfilePage from './pages/ProfilePage'
 import OfflineDocumentsPage from './pages/OfflineDocumentsPage'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 import { offlineDocumentService } from './services/offlineDocumentService'
+import AlertToast from './components/common/AlertToast'
+import { ConfirmProvider } from './contexts/ConfirmContext'
 
 import PaymentResultPage from './pages/PaymentResultPage'
 function App() {
@@ -31,7 +33,9 @@ function App() {
 
   return (
     <UserProfileProvider>
-      <BrowserRouter>
+      <ConfirmProvider>
+        <AlertToast />
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -40,6 +44,7 @@ function App() {
           <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
           <Route path="/dashboard" element={<DashboardPage />} />
+          {/* Route mở màn hình chi tiết tài liệu, nơi người dùng có thể preview và hỏi AI về đúng tài liệu đó. */}
           <Route path="/document/:id" element={<FileDetailPage />} />
           <Route path="/offline-documents" element={<OfflineDocumentsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -48,7 +53,8 @@ function App() {
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </ConfirmProvider>
     </UserProfileProvider>
   )
 }
