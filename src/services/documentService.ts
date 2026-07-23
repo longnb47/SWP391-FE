@@ -265,6 +265,29 @@ export const documentService = {
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
   },
 
+  async bulkSavePublicDocumentsToMyFiles(
+    documentIds: number[],
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    const results = await Promise.all(
+      documentIds.map((id) => this.savePublicDocumentToMyFiles(id, folderId))
+    );
+    const hasFailure = results.some((r) => !r.data || !r.data.success);
+    if (hasFailure) {
+      return { status: 500, error: 'Failed to save some public documents to My Files.' };
+    }
+    return {
+      status: 200,
+      data: {
+        success: true,
+        message: 'All documents saved to My Files',
+        data: [],
+        errors: null,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  },
+
   // Document public link share APIs
   async createShareLink(
     documentId: number,
@@ -419,6 +442,29 @@ export const documentService = {
       ? `/documents/shared-with-me/${documentId}/save-to-my-files?folderId=${folderId}`
       : `/documents/shared-with-me/${documentId}/save-to-my-files`;
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
+  },
+
+  async bulkSaveSharedWithMeDocumentsToMyFiles(
+    documentIds: number[],
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    const results = await Promise.all(
+      documentIds.map((id) => this.saveSharedWithMeDocumentToMyFiles(id, folderId))
+    );
+    const hasFailure = results.some((r) => !r.data || !r.data.success);
+    if (hasFailure) {
+      return { status: 500, error: 'Failed to save some shared documents to My Files.' };
+    }
+    return {
+      status: 200,
+      data: {
+        success: true,
+        message: 'All shared documents saved to My Files',
+        data: [],
+        errors: null,
+        timestamp: new Date().toISOString(),
+      },
+    };
   },
 };
 export default documentService;

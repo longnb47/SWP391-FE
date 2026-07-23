@@ -94,24 +94,22 @@ export const FileList: React.FC<FileListProps> = ({
       {/* Table Header */}
       <div className="grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-3 border-b border-surface-variant pb-2 mb-4 px-2.5 select-none">
         <div className="flex items-center gap-3 min-w-0">
-          {!isCommunity && (
-            <label className="flex items-center gap-1.5 cursor-pointer font-label-md text-label-md text-secondary hover:text-on-surface select-none shrink-0">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                onChange={() => onToggleSelectAll && onToggleSelectAll()}
-                className="w-4 h-4 text-primary rounded border-outline-variant focus:ring-primary/20 cursor-pointer"
-              />
-              <span>
-                Select All
-                {selectedItemIds.size > 0 && (
-                  <span className="ml-1 text-on-surface font-bold">
-                    ({selectedItemIds.size} selected)
-                  </span>
-                )}
-              </span>
-            </label>
-          )}
+          <label className="flex items-center gap-1.5 cursor-pointer font-label-md text-label-md text-secondary hover:text-on-surface select-none shrink-0">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              onChange={() => onToggleSelectAll && onToggleSelectAll()}
+              className="w-4 h-4 text-primary rounded border-outline-variant focus:ring-primary/20 cursor-pointer"
+            />
+            <span>
+              Select All
+              {selectedItemIds.size > 0 && (
+                <span className="ml-1 text-on-surface font-bold">
+                  ({selectedItemIds.size} selected)
+                </span>
+              )}
+            </span>
+          </label>
 
           <div className="flex items-center gap-1 min-w-0 ml-1">
             <span className="font-label-md text-label-md text-secondary hover:text-on-surface cursor-pointer">

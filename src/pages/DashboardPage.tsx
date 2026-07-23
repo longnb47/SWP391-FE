@@ -1303,10 +1303,53 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleBulkSaveCommunityToMyFiles = () => {
+    setSaveTarget({
+      id: "-1",
+      name: `${selectedItemIds.size} selected public documents`,
+      type: "file",
+      size: "--",
+      lastModified: "Today",
+      owner: "Community",
+    });
+    setIsSaveToOpen(true);
+  };
+
+  const handleBulkSaveSharedToMyFiles = () => {
+    setSaveTarget({
+      id: "-1",
+      name: `${selectedItemIds.size} selected shared documents`,
+      type: "file",
+      size: "--",
+      lastModified: "Today",
+      owner: "Shared",
+    });
+    setIsSaveToOpen(true);
+  };
+
   const handleSaveToFolderSubmit = async (targetFolderId: number | string | null) => {
+    const numericFolderId = targetFolderId !== null ? Number(targetFolderId) : null;
+
+    if (selectedItemIds.size > 0 && (activeTab === "Community" || activeTab === "Shared")) {
+      const numericIds = Array.from(selectedItemIds).map(Number).filter((n) => !isNaN(n));
+      setIsLoadingFiles(true);
+      const response = activeTab === "Shared"
+        ? await documentService.bulkSaveSharedWithMeDocumentsToMyFiles(numericIds, numericFolderId)
+        : await documentService.bulkSavePublicDocumentsToMyFiles(numericIds, numericFolderId);
+
+      if (response.data && response.data.success) {
+        alert(`Successfully saved ${numericIds.length} documents to My Files!`);
+        setSelectedItemIds(new Set());
+        fetchFiles();
+      } else {
+        alert(`Failed to save documents: ${response.error || "Server error"}`);
+        setIsLoadingFiles(false);
+      }
+      return;
+    }
+
     if (!saveTarget) return;
     const numericDocId = Number(saveTarget.id);
-    const numericFolderId = targetFolderId !== null ? Number(targetFolderId) : null;
 
     if (!isNaN(numericDocId) && !isFallbackMode) {
       setIsLoadingFiles(true);
@@ -1493,28 +1536,61 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {activeTab !== "Shared" && activeTab !== "Trash" && !hasSelectedFolder && (
+                  {activeTab === "Community" ? (
                     <Button
-                      variant="outline"
+                      variant="primary"
                       size="sm"
-                      onClick={handleBulkMove}
+                      onClick={handleBulkSaveCommunityToMyFiles}
                       className="flex items-center gap-1.5"
                     >
-                      <span className="material-symbols-outlined text-[18px]">drive_file_move</span>
-                      Move Selected
+                      <span className="material-symbols-outlined text-[18px]">folder_open</span>
+                      Save Selected to My Files
                     </Button>
+                  ) : activeTab === "Shared" ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkSaveSharedToMyFiles}
+                        className="flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">folder_open</span>
+                        Save Selected to My Files
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={handleBulkDeleteOrRemove}
+                        className="flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                        Remove from Shared
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {activeTab !== "Trash" && !hasSelectedFolder && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleBulkMove}
+                          className="flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">drive_file_move</span>
+                          Move Selected
+                        </Button>
+                      )}
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={handleBulkDeleteOrRemove}
+                        className="flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        Delete Selected
+                      </Button>
+                    </>
                   )}
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={handleBulkDeleteOrRemove}
-                    className="flex items-center gap-1.5"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {activeTab === "Shared" ? "person_remove" : "delete"}
-                    </span>
-                    {activeTab === "Shared" ? "Remove from Shared" : "Delete Selected"}
-                  </Button>
                   <button
                     onClick={() => setSelectedItemIds(new Set())}
                     className="p-1 text-secondary hover:text-on-surface rounded-full hover:bg-surface-container-high ml-2 cursor-pointer"
