@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { documentService } from '../../services/documentService';
 import { friendService } from '../../services/friendService';
 import type { FriendResponse } from '../../services/friendService';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 export interface ShareModalProps {
   isOpen: boolean;
@@ -12,10 +13,11 @@ export interface ShareModalProps {
   onVisibilityChange?: (isPublic: boolean) => void;
 }
 
-interface SessionShare {
+interface ExistingShare {
   userId: number;
   email: string;
   fullName: string;
+  createdAt?: string;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -26,6 +28,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   isInitiallyPublic,
   onVisibilityChange,
 }) => {
+  const confirmAction = useConfirm();
   const [activeTab, setActiveTab] = useState<'link' | 'friends'>('link');
   const [friends, setFriends] = useState<FriendResponse[]>([]);
   const [isLinkSharingEnabled, setIsLinkSharingEnabled] = useState(isInitiallyPublic);
@@ -39,9 +42,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [isSharingDirect, setIsSharingDirect] = useState(false);
   const [directShareStatus, setDirectShareStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   
-  // Track shares performed in this session so user can revoke them if needed
-  const [sessionShares, setSessionShares] = useState<SessionShare[]>([]);
-  const [isRevokingId, setIsRevokingId] = useState<number | null>(null);
+  // Track shares fetched from backend
+  const [existingShares, setExistingShares] = useState<ExistingShare[]>([]);
+  const [isLoadingShares, setIsLoadingShares] = useState(false);
 
   const fetchOrCreateShareLink = React.useCallback(async () => {
     setIsLoadingLink(true);
@@ -66,20 +69,38 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       setFriendSearch('');
       setCustomEmail('');
       setDirectShareStatus(null);
-      setSessionShares([]);
+      setExistingShares([]);
       
-      // Load friends list for direct sharing
-      const loadFriends = async () => {
+      // Load friends list and existing shares for direct sharing
+      const loadInitialData = async () => {
+        setIsLoadingShares(true);
         try {
-          const response = await friendService.getFriends();
-          if (response.data && response.data.success) {
-            setFriends(response.data.data);
+          const [friendsRes, sharesRes] = await Promise.all([
+            friendService.getFriends().catch(() => null),
+            documentService.getDocumentShares(documentId).catch(() => null),
+          ]);
+
+          if (friendsRes?.data && friendsRes.data.success) {
+            setFriends(friendsRes.data.data);
+          }
+
+          if (sharesRes?.data && sharesRes.data.success) {
+            setExistingShares(
+              sharesRes.data.data.map((s) => ({
+                userId: s.sharedWithUserId,
+                email: s.sharedWithEmail,
+                fullName: s.sharedWithName,
+                createdAt: s.createdAt,
+              }))
+            );
           }
         } catch (e) {
-          console.error('Failed to load friends list:', e);
+          console.error('Failed to load modal data:', e);
+        } finally {
+          setIsLoadingShares(false);
         }
       };
-      loadFriends();
+      loadInitialData();
 
       // If initially public, we can call createShareLink or wait. Let's fetch the link if enabled.
       if (isInitiallyPublic) {
@@ -137,6 +158,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const targetEmail = customEmail.trim();
     if (!targetEmail) return;
 
+    const confirmed = await confirmAction({
+      title: 'Share Document?',
+      message: `Are you sure you want to share "${documentName}" with ${targetEmail}?`,
+      confirmLabel: 'Share',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+
     setIsSharingDirect(true);
     setDirectShareStatus(null);
     try {
@@ -149,14 +178,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         });
         setCustomEmail('');
         
-        // Add to session shares so user can revoke it if they want
-        setSessionShares((prev) => [
-          ...prev,
+        // Add or update in existing shares
+        setExistingShares((prev) => [
           {
             userId: shareData.sharedWithUserId,
             email: shareData.sharedWithEmail,
             fullName: shareData.sharedWithName,
+            createdAt: shareData.createdAt || new Date().toISOString(),
           },
+          ...prev.filter((s) => s.userId !== shareData.sharedWithUserId),
         ]);
       } else {
         setDirectShareStatus({
@@ -175,24 +205,34 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const handleShareWithFriend = async (friend: FriendResponse) => {
+    const confirmed = await confirmAction({
+      title: 'Share Document?',
+      message: `Are you sure you want to share "${documentName}" with ${friend.fullName} (${friend.email})?`,
+      confirmLabel: 'Share',
+      variant: 'primary',
+    });
+    if (!confirmed) return;
+
     setIsSharingDirect(true);
     setDirectShareStatus(null);
     try {
       const response = await documentService.shareDocumentWithUser(documentId, friend.email);
       if (response.data && response.data.success) {
+        const shareData = response.data.data;
         setDirectShareStatus({
           type: 'success',
           message: `Shared successfully with ${friend.fullName}!`,
         });
         
-        // Add to session shares
-        setSessionShares((prev) => [
-          ...prev,
+        // Add to existing shares
+        setExistingShares((prev) => [
           {
             userId: friend.userId,
             email: friend.email,
             fullName: friend.fullName,
+            createdAt: shareData?.createdAt || new Date().toISOString(),
           },
+          ...prev.filter((s) => s.userId !== friend.userId),
         ]);
       } else {
         setDirectShareStatus({
@@ -210,32 +250,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
-  const handleRevokeShare = async (share: SessionShare) => {
-    setIsRevokingId(share.userId);
-    try {
-      const response = await documentService.removeUserShare(documentId, share.userId);
-      if (response.data && response.data.success) {
-        setSessionShares((prev) => prev.filter((s) => s.userId !== share.userId));
-        setDirectShareStatus({
-          type: 'success',
-          message: `Revoked access for ${share.email} successfully.`,
-        });
-      } else {
-        alert(response.error || 'Failed to revoke access.');
-      }
-    } catch {
-      alert('An error occurred while revoking access.');
-    } finally {
-      setIsRevokingId(null);
-    }
-  };
-
-  // Filter friends list based on search and whether they are already shared in the session
+  // Filter friends list based on search and whether they are already in existingShares
   const filteredFriends = friends.filter(
     (friend) =>
       (friend.fullName.toLowerCase().includes(friendSearch.toLowerCase()) ||
         friend.email.toLowerCase().includes(friendSearch.toLowerCase())) &&
-      !sessionShares.some((s) => s.userId === friend.userId)
+      !existingShares.some((s) => s.userId === friend.userId)
   );
 
   const shareUrl = shareToken ? `${window.location.origin}/share/${shareToken}` : '';
@@ -458,32 +478,48 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 </div>
               </div>
 
-              {/* Session Shared list (Revocation logs) */}
-              {sessionShares.length > 0 && (
+              {/* Existing Shares List with Timestamps */}
+              {isLoadingShares ? (
+                <div className="flex items-center justify-center gap-2 py-3 text-xs text-secondary">
+                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Loading shared users...</span>
+                </div>
+              ) : existingShares.length > 0 && (
                 <div className="space-y-1.5 pt-2 animate-in fade-in duration-200">
-                  <span className="font-label-md text-label-md text-secondary select-none">
-                    Shared in this session
+                  <span className="font-label-md text-label-md text-secondary select-none font-medium">
+                    Shared with ({existingShares.length})
                   </span>
-                  <div className="border border-surface-variant/60 rounded-xl overflow-hidden max-h-[120px] overflow-y-auto bg-surface-container">
-                    {sessionShares.map((share) => (
+                  <div className="border border-surface-variant/60 rounded-xl overflow-hidden max-h-[140px] overflow-y-auto bg-surface-container-low">
+                    {existingShares.map((share) => (
                       <div
                         key={share.userId}
-                        className="flex items-center justify-between px-4 py-1.5 border-b border-surface-variant/30 last:border-0"
+                        className="flex items-center justify-between px-4 py-2 border-b border-surface-variant/30 last:border-0 hover:bg-surface-container"
                       >
                         <div className="min-w-0 mr-3">
                           <p className="font-label-md text-xs text-on-surface font-semibold truncate">
                             {share.fullName || 'User'}
                           </p>
-                          <p className="text-[10px] text-secondary truncate">{share.email}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-secondary">
+                            <span className="truncate">{share.email}</span>
+                            {share.createdAt && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate text-secondary/80">
+                                  {new Date(share.createdAt).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRevokeShare(share)}
-                          disabled={isRevokingId === share.userId}
-                          className="hidden px-2 py-1 text-[10px] text-error hover:bg-error-container/20 rounded font-bold transition-all cursor-pointer disabled:opacity-50"
-                        >
-                          {isRevokingId === share.userId ? 'Revoking...' : 'Revoke'}
-                        </button>
                       </div>
                     ))}
                   </div>

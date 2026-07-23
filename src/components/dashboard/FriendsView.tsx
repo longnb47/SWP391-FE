@@ -250,7 +250,7 @@ export const FriendsView: React.FC = () => {
           >
             Incoming
             {incomingRequests.length > 0 ? (
-              <span className="bg-error text-on-error px-1.5 py-0.5 rounded-full text-[10px] animate-pulse">
+              <span className="bg-error text-on-error px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
                 {incomingRequests.length}
               </span>
             ) : (
@@ -269,9 +269,15 @@ export const FriendsView: React.FC = () => {
             }`}
           >
             Outgoing
-            <span className="bg-surface-container-high text-on-surface px-1.5 py-0.5 rounded-full text-[10px]">
-              {outgoingRequests.length}
-            </span>
+            {outgoingRequests.length > 0 ? (
+              <span className="bg-error text-on-error px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
+                {outgoingRequests.length}
+              </span>
+            ) : (
+              <span className="bg-surface-container-high text-on-surface px-1.5 py-0.5 rounded-full text-[10px]">
+                0
+              </span>
+            )}
           </button>
         </div>
 
