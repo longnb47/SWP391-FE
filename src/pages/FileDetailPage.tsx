@@ -3,9 +3,14 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import DocumentPreview from '../components/document/DocumentPreview';
 import DocumentChat from '../components/document/DocumentChat';
+import ShareModal from '../components/dashboard/ShareModal';
+import SaveToFolderModal from '../components/dashboard/SaveToFolderModal';
+import { folderService } from '../services/folderService';
+import type { DocumentFolderResponse } from '../services/folderService';
 import { documentService } from '../services/documentService';
 import { isOfflinePreviewSupported, offlineDocumentService } from '../services/offlineDocumentService';
 import { deleteOfflineDocument, getOfflineDocument, isOfflineDocumentSaved } from '../lib/offlineDocumentDb';
+import { markSharedDocAsRead } from '../lib/sharedDocReadDb';
 import type { OfflineDocumentRecord } from '../lib/offlineDocumentDb';
 import subscriptionService from '../services/subscriptionService';
 import { mockFileItems, mockSuggestedItems } from '../features/dashboard/dashboard.mock';
@@ -85,12 +90,16 @@ export const FileDetailPage: React.FC = () => {
     contentType: string | null;
     status: string;
     userId?: number | null;
+    isPublic?: boolean;
     fileSizeBytes?: number;
     uploadedAt?: string;
   } | null>(null);
   const [storage, setStorage] = useState<StorageUsage | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isSaveToOpen, setIsSaveToOpen] = useState(false);
+  const [allFolders, setAllFolders] = useState<DocumentFolderResponse[]>([]);
   const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
   const [isOfflineSaved, setIsOfflineSaved] = useState(false);
   const [isOfflineActionLoading, setIsOfflineActionLoading] = useState(false);
@@ -291,6 +300,11 @@ export const FileDetailPage: React.FC = () => {
         
         if (response && response.data && response.data.success) {
           const doc = response.data.data;
+
+          // Chỉ đánh dấu đã đọc sau khi backend xác nhận tài liệu thực sự được share cho user hiện tại.
+          if (isSharedDoc) {
+            markSharedDocAsRead(doc.documentId, currentUserId);
+          }
           
           let previewUrl: string | null = null;
           let contentType: string | null = doc.contentType;
@@ -338,6 +352,7 @@ export const FileDetailPage: React.FC = () => {
             contentType,
             status: doc.status,
             userId: doc.userId,
+            isPublic: doc.isPublic,
             fileSizeBytes: doc.fileSize,
             uploadedAt: doc.uploadedAt,
           });
@@ -395,6 +410,51 @@ export const FileDetailPage: React.FC = () => {
 
     loadDetails();
   }, [id, isLoggedIn, navigate, currentUserId, isOnline, preferOffline]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    folderService.getFolders().then((res) => {
+      if (res.data && res.data.success) {
+        setAllFolders(res.data.data);
+      }
+    }).catch((e) => console.error('Failed to load user folders:', e));
+  }, [isLoggedIn]);
+
+  const handleSaveToMyFilesSubmit = async (targetFolderId: number | string | null) => {
+    if (!documentDetails?.id) return;
+    const numericFolderId = targetFolderId === null ? null : Number(targetFolderId);
+    try {
+      let response = await documentService.savePublicDocumentToMyFiles(documentDetails.id, numericFolderId);
+      if (!response.data || !response.data.success) {
+        response = await documentService.saveSharedWithMeDocumentToMyFiles(documentDetails.id, numericFolderId);
+      }
+
+      if (response.data && response.data.success) {
+        alert(`Saved "${documentDetails.name}" to My Files successfully!`);
+        setIsSaveToOpen(false);
+      } else {
+        alert(response.error || 'Failed to save document to My Files.');
+      }
+    } catch {
+      alert('An error occurred while saving the document to My Files.');
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!documentDetails?.id) return;
+    const nextPublicState = !documentDetails.isPublic;
+    try {
+      const response = await documentService.updateDocumentVisibility(documentDetails.id, nextPublicState);
+      if (response.data && response.data.success) {
+        setDocumentDetails((prev) => (prev ? { ...prev, isPublic: nextPublicState } : null));
+        alert(nextPublicState ? 'Document is now Publicly visible in Community!' : 'Document is now Private!');
+      } else {
+        alert(response.error || 'Failed to update document visibility.');
+      }
+    } catch {
+      alert('An error occurred while updating document visibility.');
+    }
+  };
 
   const handleTabChange = (tabName: string) => {
     if (tabName === 'Offline') {
@@ -549,7 +609,26 @@ export const FileDetailPage: React.FC = () => {
               alert(`Downloading "${documentDetails.name}"...`);
             }
           }}
-          onShareClick={() => alert(`Sharing "${documentDetails.name}" link...`)}
+          onShareClick={() => {
+            if (documentDetails.id) {
+              setIsShareModalOpen(true);
+            } else {
+              alert('Sharing is not available for offline or unindexed preview documents.');
+            }
+          }}
+          onSaveToMyFilesClick={() => {
+            if (documentDetails.id) {
+              setIsSaveToOpen(true);
+            } else {
+              alert('Save to My Files is not available for this document.');
+            }
+          }}
+          isPublic={documentDetails.isPublic || false}
+          onToggleVisibilityClick={
+            documentDetails.id && (documentDetails.userId === currentUserId || (!documentDetails.userId && isLoggedIn))
+              ? handleToggleVisibility
+              : undefined
+          }
           onBack={() => {
             if (fromTab === 'Offline') {
               navigate('/offline-documents');
@@ -613,6 +692,32 @@ export const FileDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {documentDetails?.id && (
+        <>
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            documentId={documentDetails.id}
+            documentName={documentDetails.name}
+            isInitiallyPublic={documentDetails.isPublic || false}
+            onVisibilityChange={(isPublic) => {
+              setDocumentDetails((prev) => (prev ? { ...prev, isPublic } : null));
+            }}
+          />
+
+          <SaveToFolderModal
+            isOpen={isSaveToOpen}
+            onClose={() => setIsSaveToOpen(false)}
+            documentName={documentDetails.name}
+            folders={allFolders.map((f) => ({
+              folderId: f.folderId,
+              name: f.name,
+            }))}
+            onSave={handleSaveToMyFilesSubmit}
+          />
+        </>
+      )}
     </DashboardLayout>
   );
 };
