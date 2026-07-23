@@ -254,6 +254,16 @@ export const documentService = {
     );
   },
 
+  async savePublicDocumentToMyFiles(
+    documentId: number,
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    const url = folderId !== null
+      ? `/documents/public/${documentId}/save-to-my-files?folderId=${folderId}`
+      : `/documents/public/${documentId}/save-to-my-files`;
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
+  },
+
   // Document public link share APIs
   async createShareLink(
     documentId: number,
@@ -353,6 +363,16 @@ export const documentService = {
     return apiClient.get<BackendResponse<DocumentUrlResponse>>(
       `/documents/shared-with-me/${documentId}/download-url`,
     );
+  },
+
+  async saveSharedWithMeDocumentToMyFiles(
+    documentId: number,
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse>>> {
+    const url = folderId !== null
+      ? `/documents/shared-with-me/${documentId}/save-to-my-files?folderId=${folderId}`
+      : `/documents/shared-with-me/${documentId}/save-to-my-files`;
+    return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
   },
 };
 export default documentService;

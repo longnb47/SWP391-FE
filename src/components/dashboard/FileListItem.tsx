@@ -9,6 +9,7 @@ export interface FileListItemProps {
   onActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
   isTrash?: boolean;
   isCommunity?: boolean;
+  isShared?: boolean;
 }
 
 export const FileListItem: React.FC<FileListItemProps> = ({
@@ -17,6 +18,7 @@ export const FileListItem: React.FC<FileListItemProps> = ({
   onActionClick,
   isTrash = false,
   isCommunity = false,
+  isShared = false,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { name, type, tags = [], owner, lastModified, size, isPublic, tagDetails = [] } = item;
@@ -181,13 +183,19 @@ export const FileListItem: React.FC<FileListItemProps> = ({
                     <span className="material-symbols-outlined text-[16px] text-error">delete_forever</span> Delete Permanently
                   </button>
                 </>
-              ) : isCommunity ? (
+              ) : isCommunity || isShared ? (
                 <>
                   <button
                     onClick={(e) => handleAction('open', e)}
                     className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-[16px]">visibility</span> Open
+                  </button>
+                  <button
+                    onClick={(e) => handleAction('save_to_my_files', e)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">save_alt</span> Save to My Files
                   </button>
                 </>
               ) : (

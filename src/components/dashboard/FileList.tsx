@@ -9,6 +9,7 @@ export interface FileListProps {
   onItemActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
   isTrash?: boolean;
   isCommunity?: boolean;
+  isShared?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -20,6 +21,7 @@ export const FileList: React.FC<FileListProps> = ({
   onItemActionClick,
   isTrash = false,
   isCommunity = false,
+  isShared = false,
   emptyTitle = 'No documents yet',
   emptyDescription = 'Drag and drop files here, or use the Upload button to get started.',
 }) => {
@@ -78,6 +80,7 @@ export const FileList: React.FC<FileListProps> = ({
             onActionClick={onItemActionClick}
             isTrash={isTrash}
             isCommunity={isCommunity}
+            isShared={isShared}
           />
         ))}
       </div>
