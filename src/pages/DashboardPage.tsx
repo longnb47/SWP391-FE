@@ -61,7 +61,7 @@ export const DashboardPage: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState(
-    () => navigationState?.activeTab || "My Files",
+    () => navigationState?.activeTab || sessionStorage.getItem("dashboardActiveTab") || "My Files",
   );
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -111,6 +111,10 @@ export const DashboardPage: React.FC = () => {
 
   // Folder chat state
   const [isFolderChatOpen, setIsFolderChatOpen] = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem("dashboardActiveTab", activeTab);
+  }, [activeTab]);
 
   // Document filter state
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
