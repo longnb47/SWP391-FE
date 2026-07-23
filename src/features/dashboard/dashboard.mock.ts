@@ -11,6 +11,7 @@ export interface FileItem {
   isStarred?: boolean;
   isPublic?: boolean;
   isDeleted?: boolean;
+  isUnread?: boolean;
   tagDetails?: { name: string; color: string }[];
   folderId?: number | string | null;
 }
