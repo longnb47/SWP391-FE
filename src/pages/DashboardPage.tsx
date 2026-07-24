@@ -332,7 +332,8 @@ export const DashboardPage: React.FC = () => {
 
   // Load files from backend
   const fetchFiles = async () => {
-    if (!isLoggedIn) {
+    // Guests can still browse the public Community collection.
+    if (!isLoggedIn && activeTab !== "Community") {
       setApiFiles([]);
       setApiFolders([]);
       setIsFallbackMode(false);
@@ -655,7 +656,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   // Compile final file list: folders + documents, or mock files filtered by navigation
-  const fileItems: FileItem[] = !isLoggedIn
+  const fileItems: FileItem[] = !isLoggedIn && activeTab !== "Community"
     ? []
     : isFallbackMode
       ? mockFileItems.filter((item) => {
@@ -891,7 +892,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleItemClick = (item: FileItem) => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn && activeTab !== "Community") {
       alert("Please log in to view file details.");
       navigate("/login");
       return;
@@ -972,6 +973,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleItemActionClick = async (item: FileItem, action: string) => {
+    if (action === "open") {
+      handleItemClick(item);
+      return;
+    }
+
     if (!isLoggedIn) {
       alert("Please log in to perform this action.");
       navigate("/login");
@@ -1182,8 +1188,6 @@ export const DashboardPage: React.FC = () => {
           setIsLoadingFiles(false);
         }
       }
-    } else if (action === "open") {
-      handleItemClick(item);
     } else if (action === "save_to_my_files") {
       setSaveTarget(item);
       setIsSaveToOpen(true);
@@ -1304,6 +1308,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleBulkSaveCommunityToMyFiles = () => {
+    if (!isLoggedIn) {
+      alert("Please log in to save Community documents to My Files.");
+      navigate("/login");
+      return;
+    }
     setSaveTarget({
       id: "-1",
       name: `${selectedItemIds.size} selected public documents`,

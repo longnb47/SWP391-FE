@@ -151,12 +151,6 @@ export const FileDetailPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      alert('Please log in to view document details.');
-      navigate('/login');
-      return;
-    }
-
     // Khi mở trang, tải metadata tài liệu trước để DocumentChat biết documentId và chỉ cho hỏi khi status là READY.
     const loadDetails = async () => {
       setIsLoading(true);
@@ -218,33 +212,35 @@ export const FileDetailPage: React.FC = () => {
         return;
       }
 
-      // Tải document của user để tính động dung lượng hiển thị ở sidebar.
-      try {
-        const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
-          subscriptionService.getMySubscription().catch(() => null),
-          documentService.getMyDocuments().catch(() => null),
-          documentService.getSharedWithMeDocuments().catch(() => null),
-        ]);
+      // Storage and personal document APIs require authentication; guests only load public metadata below.
+      if (isLoggedIn) {
+        try {
+          const [subRes, myDocsRes, sharedDocsRes] = await Promise.all([
+            subscriptionService.getMySubscription().catch(() => null),
+            documentService.getMyDocuments().catch(() => null),
+            documentService.getSharedWithMeDocuments().catch(() => null),
+          ]);
 
-        let limitGb = 2;
-        if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
-          limitGb = subRes.data.data.storageLimitGb || 2;
+          let limitGb = 2;
+          if (subRes && subRes.data && subRes.data.success && subRes.data.data) {
+            limitGb = subRes.data.data.storageLimitGb || 2;
+          }
+
+          let myTotal = 0;
+          if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
+            myTotal = myDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+          }
+
+          let sharedTotal = 0;
+          if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
+            sharedTotal = sharedDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
+          }
+
+          const computedStorage = calculateStorageUsage(myTotal, sharedTotal, limitGb, true);
+          setStorage(computedStorage);
+        } catch (e) {
+          console.error('Failed to load storage details:', e);
         }
-
-        let myTotal = 0;
-        if (myDocsRes && myDocsRes.data && myDocsRes.data.success && myDocsRes.data.data) {
-          myTotal = myDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
-        }
-
-        let sharedTotal = 0;
-        if (sharedDocsRes && sharedDocsRes.data && sharedDocsRes.data.success && sharedDocsRes.data.data) {
-          sharedTotal = sharedDocsRes.data.data.reduce((sum, f) => sum + (f.fileSize || 0), 0);
-        }
-
-        const computedStorage = calculateStorageUsage(myTotal, sharedTotal, limitGb, true);
-        setStorage(computedStorage);
-      } catch (e) {
-        console.error('Failed to load storage details:', e);
       }
 
       if (!isNaN(numericId)) {
@@ -253,47 +249,52 @@ export const FileDetailPage: React.FC = () => {
         let isPublicDoc = false;
         let isSharedDoc = false;
         
-        try {
-          response = await documentService.getDocumentDetail(numericId);
-          if (!response.data || !response.data.success) {
-            // Nếu không phải document owner thì thử document được share cho user.
-            const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
-            if (sharedResponse.data && sharedResponse.data.success) {
-              response = sharedResponse;
-              isSharedDoc = true;
-            } else {
-              // Fallback cuối cho document public của user khác, ví dụ mở từ community page.
-              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
-              if (publicResponse.data && publicResponse.data.success) {
-                response = publicResponse;
-                isPublicDoc = true;
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to fetch private document detail, checking shared-with-me:', e);
+        if (!isLoggedIn) {
+          response = await documentService.getPublicDocumentDetail(numericId);
+          isPublicDoc = !!(response.data && response.data.success);
+        } else {
           try {
-            const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
-            if (sharedResponse.data && sharedResponse.data.success) {
-              response = sharedResponse;
-              isSharedDoc = true;
-            } else {
-              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
-              if (publicResponse.data && publicResponse.data.success) {
-                response = publicResponse;
-                isPublicDoc = true;
+            response = await documentService.getDocumentDetail(numericId);
+            if (!response.data || !response.data.success) {
+              // Nếu không phải document owner thì thử document được share cho user.
+              const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
+              if (sharedResponse.data && sharedResponse.data.success) {
+                response = sharedResponse;
+                isSharedDoc = true;
+              } else {
+                // Fallback cuối cho document public của user khác, ví dụ mở từ community page.
+                const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+                if (publicResponse.data && publicResponse.data.success) {
+                  response = publicResponse;
+                  isPublicDoc = true;
+                }
               }
             }
-          } catch (sharedErr) {
-            console.warn('Failed to load as shared document, checking public:', sharedErr);
+          } catch (e) {
+            console.warn('Failed to fetch private document detail, checking shared-with-me:', e);
             try {
-              const publicResponse = await documentService.getPublicDocumentDetail(numericId);
-              if (publicResponse.data && publicResponse.data.success) {
-                response = publicResponse;
-                isPublicDoc = true;
+              const sharedResponse = await documentService.getSharedWithMeDocumentDetail(numericId);
+              if (sharedResponse.data && sharedResponse.data.success) {
+                response = sharedResponse;
+                isSharedDoc = true;
+              } else {
+                const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+                if (publicResponse.data && publicResponse.data.success) {
+                  response = publicResponse;
+                  isPublicDoc = true;
+                }
               }
-            } catch (pubErr) {
-              console.error('Failed to load as public document:', pubErr);
+            } catch (sharedErr) {
+              console.warn('Failed to load as shared document, checking public:', sharedErr);
+              try {
+                const publicResponse = await documentService.getPublicDocumentDetail(numericId);
+                if (publicResponse.data && publicResponse.data.success) {
+                  response = publicResponse;
+                  isPublicDoc = true;
+                }
+              } catch (pubErr) {
+                console.error('Failed to load as public document:', pubErr);
+              }
             }
           }
         }
@@ -360,6 +361,13 @@ export const FileDetailPage: React.FC = () => {
           setIsLoading(false);
           return;
         }
+
+        if (!isLoggedIn) {
+          setDocumentDetails(null);
+          setOfflineUnavailableMessage('This public document is no longer available.');
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Dữ liệu mock chỉ được dùng khi không resolve được document thật từ backend.
@@ -421,6 +429,11 @@ export const FileDetailPage: React.FC = () => {
   }, [isLoggedIn]);
 
   const handleSaveToMyFilesSubmit = async (targetFolderId: number | string | null) => {
+    if (!isLoggedIn) {
+      setIsSaveToOpen(false);
+      navigate('/login');
+      return;
+    }
     if (!documentDetails?.id) return;
     const numericFolderId = targetFolderId === null ? null : Number(targetFolderId);
     try {
@@ -468,8 +481,9 @@ export const FileDetailPage: React.FC = () => {
   };
 
   // Chat online chỉ được render khi browser có mạng; đây là guard UI, backend vẫn kiểm tra quyền độc lập.
-  const canUseOnlineChat = isOnline;
+  const canUseOnlineChat = isLoggedIn && isOnline;
   const canSaveCurrentDocument =
+    isLoggedIn &&
     !!documentDetails?.id &&
     isOfflinePreviewSupported(documentDetails.name, documentDetails.contentType || '');
 
@@ -610,6 +624,11 @@ export const FileDetailPage: React.FC = () => {
             }
           }}
           onShareClick={() => {
+            if (!isLoggedIn) {
+              alert('Please log in to share documents.');
+              navigate('/login');
+              return;
+            }
             if (documentDetails.id) {
               setIsShareModalOpen(true);
             } else {
@@ -617,6 +636,11 @@ export const FileDetailPage: React.FC = () => {
             }
           }}
           onSaveToMyFilesClick={() => {
+            if (!isLoggedIn) {
+              alert('Please log in to save documents to My Files.');
+              navigate('/login');
+              return;
+            }
             if (documentDetails.id) {
               setIsSaveToOpen(true);
             } else {
@@ -659,7 +683,7 @@ export const FileDetailPage: React.FC = () => {
             onClose={() => setIsChatOpen(false)}
           />
         )}
-        <div className="absolute right-4 bottom-4 z-20 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2 shadow-lg">
+        {isLoggedIn && <div className="absolute right-4 bottom-4 z-20 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2 shadow-lg">
           <div className="flex flex-col gap-0.5">
             <span className={`font-body-md text-sm ${isOfflineSaved ? 'text-primary' : 'text-secondary'}`}>
               {isOfflineSaved ? 'Available Offline' : isOnline ? 'Online only' : 'Offline'}
@@ -693,7 +717,7 @@ export const FileDetailPage: React.FC = () => {
               {isOfflineActionLoading ? 'Downloading...' : 'Save Offline'}
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {documentDetails?.id && (
