@@ -11,6 +11,9 @@ export interface DocumentPreviewProps {
   contentType: string | null;
   onDownloadClick?: () => void;
   onShareClick?: () => void;
+  onSaveToMyFilesClick?: () => void;
+  isPublic?: boolean;
+  onToggleVisibilityClick?: () => void;
   onBack?: () => void;
   isChatOpen?: boolean;
   onToggleChat?: () => void;
@@ -25,6 +28,9 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   contentType,
   onDownloadClick,
   onShareClick,
+  onSaveToMyFilesClick,
+  isPublic = false,
+  onToggleVisibilityClick,
   onBack,
   isChatOpen = true,
   onToggleChat,
@@ -420,6 +426,28 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               </button>
               <div className="w-px h-4 bg-outline-variant mx-2" />
             </>
+          )}
+
+          {onSaveToMyFilesClick && (
+            <button
+              onClick={onSaveToMyFilesClick}
+              className="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors cursor-pointer"
+              title="Save to My Files"
+            >
+              <span className="material-symbols-outlined text-[20px]">folder_open</span>
+            </button>
+          )}
+
+          {onToggleVisibilityClick && (
+            <button
+              onClick={onToggleVisibilityClick}
+              className="p-1.5 text-secondary hover:bg-surface-container rounded transition-colors cursor-pointer"
+              title={isPublic ? 'Publicly visible in Community (Click to make Private)' : 'Private document (Click to make Public)'}
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                {isPublic ? 'public' : 'lock'}
+              </span>
+            </button>
           )}
 
           <button

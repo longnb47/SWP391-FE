@@ -7,6 +7,9 @@ export interface FileListProps {
   isLoading?: boolean;
   onItemClick?: (item: FileItem) => void;
   onItemActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
+  selectedItemIds?: Set<string>;
+  onToggleSelectItem?: (id: string, e: React.MouseEvent) => void;
+  onToggleSelectAll?: () => void;
   isTrash?: boolean;
   isCommunity?: boolean;
   isShared?: boolean;
@@ -14,11 +17,29 @@ export interface FileListProps {
   emptyDescription?: string;
 }
 
+const getTimelineCategory = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'Earlier';
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+  const thisWeekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  if (d >= todayStart) return 'Today';
+  if (d >= yesterdayStart) return 'Yesterday';
+  if (d >= thisWeekStart) return 'This Week';
+  return 'Earlier';
+};
+
 export const FileList: React.FC<FileListProps> = ({
   items,
   isLoading = false,
   onItemClick,
   onItemActionClick,
+  selectedItemIds = new Set(),
+  onToggleSelectItem,
+  onToggleSelectAll,
   isTrash = false,
   isCommunity = false,
   isShared = false,
@@ -51,17 +72,53 @@ export const FileList: React.FC<FileListProps> = ({
     );
   }
 
+  const isAllSelected = items.length > 0 && selectedItemIds.size === items.length;
+  const hasAnySelection = selectedItemIds.size > 0;
+
+  // Group items by timeline if in Shared or Community tab
+  const timelineCategories = ['Today', 'Yesterday', 'This Week', 'Earlier'];
+  const groupedItems: Record<string, FileItem[]> = {};
+
+  if (isShared || isCommunity) {
+    items.forEach((item) => {
+      const category = getTimelineCategory(item.lastModified);
+      if (!groupedItems[category]) {
+        groupedItems[category] = [];
+      }
+      groupedItems[category].push(item);
+    });
+  }
+
   return (
     <section>
       {/* Table Header */}
-      <div className="grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-4 border-b border-surface-variant pb-2 mb-4 px-2.5 select-none">
-        <div className="flex items-center gap-4 min-w-0">
-          <span className="font-label-md text-label-md text-secondary hover:text-on-surface cursor-pointer">
-            Name
-          </span>
-          <span className="material-symbols-outlined text-[16px] text-secondary cursor-pointer select-none">
-            arrow_downward
-          </span>
+      <div className="grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-3 border-b border-surface-variant pb-2 mb-4 px-2.5 select-none">
+        <div className="flex items-center gap-3 min-w-0">
+          <label className="flex items-center gap-1.5 cursor-pointer font-label-md text-label-md text-secondary hover:text-on-surface select-none shrink-0">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              onChange={() => onToggleSelectAll && onToggleSelectAll()}
+              className="w-4 h-4 text-primary rounded border-outline-variant focus:ring-primary/20 cursor-pointer"
+            />
+            <span>
+              Select All
+              {selectedItemIds.size > 0 && (
+                <span className="ml-1 text-on-surface font-bold">
+                  ({selectedItemIds.size} selected)
+                </span>
+              )}
+            </span>
+          </label>
+
+          <div className="flex items-center gap-1 min-w-0 ml-1">
+            <span className="font-label-md text-label-md text-secondary hover:text-on-surface cursor-pointer">
+              Name
+            </span>
+            <span className="material-symbols-outlined text-[16px] text-secondary cursor-pointer select-none">
+              arrow_downward
+            </span>
+          </div>
         </div>
         
         <span className="hidden md:block font-label-md text-label-md text-secondary text-right">Owner</span>
@@ -70,20 +127,59 @@ export const FileList: React.FC<FileListProps> = ({
         <span className="block" aria-hidden="true" />
       </div>
 
-      {/* List Items */}
-      <div className="space-y-1">
-        {items.map((item) => (
-          <FileListItem
-            key={item.id}
-            item={item}
-            onItemClick={onItemClick}
-            onActionClick={onItemActionClick}
-            isTrash={isTrash}
-            isCommunity={isCommunity}
-            isShared={isShared}
-          />
-        ))}
-      </div>
+      {/* List Items (Timeline Grouping if Shared or Community) */}
+      {isShared || isCommunity ? (
+        <div className="space-y-6">
+          {timelineCategories.map((category) => {
+            const categoryItems = groupedItems[category];
+            if (!categoryItems || categoryItems.length === 0) return null;
+
+            return (
+              <div key={category} className="space-y-1">
+                <div className="flex items-center gap-2 pb-2 text-xs font-bold text-primary uppercase tracking-wider select-none border-b border-outline-variant/30">
+                  <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                  <span>{category}</span>
+                  <span className="text-secondary font-normal">({categoryItems.length})</span>
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  {categoryItems.map((item) => (
+                    <FileListItem
+                      key={item.id}
+                      item={item}
+                      onItemClick={onItemClick}
+                      onActionClick={onItemActionClick}
+                      isSelected={selectedItemIds.has(item.id)}
+                      hasAnySelection={hasAnySelection}
+                      onToggleSelect={onToggleSelectItem}
+                      isTrash={isTrash}
+                      isCommunity={isCommunity}
+                      isShared={isShared}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {items.map((item) => (
+            <FileListItem
+              key={item.id}
+              item={item}
+              onItemClick={onItemClick}
+              onActionClick={onItemActionClick}
+              isSelected={selectedItemIds.has(item.id)}
+              hasAnySelection={hasAnySelection}
+              onToggleSelect={onToggleSelectItem}
+              isTrash={isTrash}
+              isCommunity={isCommunity}
+              isShared={isShared}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };

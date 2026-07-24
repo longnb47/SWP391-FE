@@ -7,6 +7,9 @@ export interface FileListItemProps {
   item: FileItem;
   onItemClick?: (item: FileItem) => void;
   onActionClick?: (item: FileItem, action: string, e: React.MouseEvent) => void;
+  isSelected?: boolean;
+  hasAnySelection?: boolean;
+  onToggleSelect?: (id: string, e: React.MouseEvent) => void;
   isTrash?: boolean;
   isCommunity?: boolean;
   isShared?: boolean;
@@ -16,14 +19,44 @@ export const FileListItem: React.FC<FileListItemProps> = ({
   item,
   onItemClick,
   onActionClick,
+  isSelected = false,
+  hasAnySelection = false,
+  onToggleSelect,
   isTrash = false,
   isCommunity = false,
   isShared = false,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { name, type, tags = [], owner, lastModified, size, isPublic, tagDetails = [] } = item;
+  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressRef = React.useRef(false);
 
-  const handleRowClick = () => {
+  const startLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (onToggleSelect) {
+        onToggleSelect(item.id, e as unknown as React.MouseEvent);
+      }
+    }, 450);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false;
+      return;
+    }
+    if (hasAnySelection) {
+      if (onToggleSelect) onToggleSelect(item.id, e);
+      return;
+    }
     if (onItemClick) onItemClick(item);
   };
 
@@ -55,16 +88,54 @@ export const FileListItem: React.FC<FileListItemProps> = ({
   return (
     <div
       onClick={handleRowClick}
-      className="group grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-4 p-2.5 hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors border border-transparent hover:border-outline-variant/30 relative"
+      onMouseDown={startLongPress}
+      onMouseUp={cancelLongPress}
+      onMouseLeave={cancelLongPress}
+      onTouchStart={startLongPress}
+      onTouchEnd={cancelLongPress}
+      className={`group grid grid-cols-[minmax(0,1fr)_4rem] md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_4.5rem_4rem] items-center gap-x-3 p-2.5 hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors border relative select-none ${
+        isSelected
+          ? 'bg-primary/10 border-primary/40'
+          : 'border-transparent hover:border-outline-variant/30'
+      }`}
     >
       {/* Title & Icons */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Selection Checkbox (visible when item is selected or selection mode is active) */}
+        {(hasAnySelection || isSelected) && (
+          <div
+            className="flex items-center justify-center shrink-0 transition-opacity duration-150"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onToggleSelect) onToggleSelect(item.id, e);
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => {}}
+              className="w-4 h-4 text-primary rounded border-outline-variant focus:ring-primary/20 cursor-pointer"
+            />
+          </div>
+        )}
+
         <span className={`material-symbols-outlined select-none text-[22px] ${iconDetails.classes}`}>
           {iconDetails.name}
         </span>
         <span className="font-body-md text-body-md text-on-surface font-medium truncate">
           {name}
         </span>
+
+        {/* Unread indicator for shared files */}
+        {isShared && item.isUnread && (
+          <span
+            className="inline-flex items-center gap-1 bg-error/15 text-error px-2 py-0.5 rounded-full text-[10px] font-bold border border-error/30 shrink-0 select-none"
+            title="New shared document"
+          >
+            <span className="w-1.5 h-1.5 bg-error rounded-full" />
+            NEW
+          </span>
+        )}
 
         {/* Visibility indicator */}
         {type === 'file' && (
@@ -195,8 +266,16 @@ export const FileListItem: React.FC<FileListItemProps> = ({
                     onClick={(e) => handleAction('save_to_my_files', e)}
                     className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container-high flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[16px]">save_alt</span> Save to My Files
+                    <span className="material-symbols-outlined text-[16px]">folder_open</span> Save to My Files
                   </button>
+                  {isShared && (
+                    <button
+                      onClick={(e) => handleAction('remove_shared', e)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-error hover:bg-error-container/30 flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-error">person_remove</span> Remove from Shared
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../common/Button';
 import StorageUsageCard from '../dashboard/StorageUsageCard';
 import { mockStorageUsage } from '../../features/dashboard/dashboard.mock';
 import type { StorageUsage } from '../../features/dashboard/dashboard.mock';
+import { documentService } from '../../services/documentService';
+import { friendService } from '../../services/friendService';
+import { getReadSharedDocIds } from '../../lib/sharedDocReadDb';
 
 export interface SidebarProps {
   isOpen?: boolean;
@@ -45,6 +48,38 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 }) => {
   const navigate = useNavigate();
   const role = localStorage.getItem('userRole');
+  const [sharedBadge, setSharedBadge] = useState(0);
+  const [friendsBadge, setFriendsBadge] = useState(0);
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) return;
+    const loadBadges = async () => {
+      try {
+        const [sharedRes, friendsRes] = await Promise.all([
+          documentService.getSharedWithMeDocuments().catch(() => null),
+          friendService.getIncomingRequests().catch(() => null),
+        ]);
+        if (sharedRes?.data?.success && Array.isArray(sharedRes.data.data)) {
+          const currentUserId = Number(localStorage.getItem('userId')) || null;
+          const readIds = getReadSharedDocIds(currentUserId);
+          const unreadCount = sharedRes.data.data.filter((doc) => !readIds.has(doc.documentId)).length;
+          setSharedBadge(unreadCount);
+        }
+        if (friendsRes?.data?.success && Array.isArray(friendsRes.data.data)) {
+          setFriendsBadge(friendsRes.data.data.length);
+        }
+      } catch (e) {
+        console.error('Failed to fetch sidebar badges:', e);
+      }
+    };
+    loadBadges();
+
+    window.addEventListener('shared-doc-read-updated', loadBadges);
+    return () => {
+      window.removeEventListener('shared-doc-read-updated', loadBadges);
+    };
+  }, []);
+
   const items = [...navItems];
   if (role === 'ADMIN') {
     items.push({ name: 'Admin', icon: 'admin_panel_settings' });
@@ -120,6 +155,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto select-none">
         {items.map((item) => {
           const isActive = activeTab === item.name;
+          const badgeCount = item.name === 'Shared' ? sharedBadge : item.name === 'Friends' ? friendsBadge : 0;
           return (
             <button
               key={item.name}
@@ -139,7 +175,12 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               >
                 {item.icon}
               </span>
-              <span className="font-label-md text-label-md">{item.name}</span>
+              <span className="font-label-md text-label-md flex-1">{item.name}</span>
+              {badgeCount > 0 && (
+                <span className="bg-error text-on-error font-bold text-[10px] px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm">
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+              )}
             </button>
           );
         })}

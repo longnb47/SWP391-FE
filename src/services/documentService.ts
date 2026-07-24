@@ -265,6 +265,29 @@ export const documentService = {
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
   },
 
+  async bulkSavePublicDocumentsToMyFiles(
+    documentIds: number[],
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    const results = await Promise.all(
+      documentIds.map((id) => this.savePublicDocumentToMyFiles(id, folderId))
+    );
+    const hasFailure = results.some((r) => !r.data || !r.data.success);
+    if (hasFailure) {
+      return { status: 500, error: 'Failed to save some public documents to My Files.' };
+    }
+    return {
+      status: 200,
+      data: {
+        success: true,
+        message: 'All documents saved to My Files',
+        data: [],
+        errors: null,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  },
+
   // Document public link share APIs
   async createShareLink(
     documentId: number,
@@ -315,6 +338,14 @@ export const documentService = {
   },
 
   // Direct user sharing APIs
+  async getDocumentShares(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<DocumentShareResponse[]>>> {
+    return apiClient.get<BackendResponse<DocumentShareResponse[]>>(
+      `/documents/${documentId}/shares/users`,
+    );
+  },
+
   async shareDocumentWithUser(
     documentId: number,
     email: string,
@@ -366,6 +397,43 @@ export const documentService = {
     );
   },
 
+  async removeSharedWithMeDocument(
+    documentId: number,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.delete<BackendResponse<null>>(
+      `/documents/shared-with-me/${documentId}`,
+    );
+  },
+
+  async bulkRemoveSharedWithMeDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/shared-with-me/bulk-remove",
+      documentIds,
+    );
+  },
+
+  async bulkMoveDocuments(
+    documentIds: number[],
+    folderId: number | null,
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.request<BackendResponse<null>>("/documents/bulk-move", {
+      method: "PATCH",
+      body: JSON.stringify({ documentIds, folderId }),
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  async bulkTrashDocuments(
+    documentIds: number[],
+  ): Promise<ApiResponse<BackendResponse<null>>> {
+    return apiClient.post<BackendResponse<null>>(
+      "/documents/bulk-trash",
+      documentIds,
+    );
+  },
+
   async saveSharedWithMeDocumentToMyFiles(
     documentId: number,
     folderId: number | null = null,
@@ -374,6 +442,29 @@ export const documentService = {
       ? `/documents/shared-with-me/${documentId}/save-to-my-files?folderId=${folderId}`
       : `/documents/shared-with-me/${documentId}/save-to-my-files`;
     return apiClient.post<BackendResponse<DocumentUploadResponse>>(url);
+  },
+
+  async bulkSaveSharedWithMeDocumentsToMyFiles(
+    documentIds: number[],
+    folderId: number | null = null,
+  ): Promise<ApiResponse<BackendResponse<DocumentUploadResponse[]>>> {
+    const results = await Promise.all(
+      documentIds.map((id) => this.saveSharedWithMeDocumentToMyFiles(id, folderId))
+    );
+    const hasFailure = results.some((r) => !r.data || !r.data.success);
+    if (hasFailure) {
+      return { status: 500, error: 'Failed to save some shared documents to My Files.' };
+    }
+    return {
+      status: 200,
+      data: {
+        success: true,
+        message: 'All shared documents saved to My Files',
+        data: [],
+        errors: null,
+        timestamp: new Date().toISOString(),
+      },
+    };
   },
 };
 export default documentService;
